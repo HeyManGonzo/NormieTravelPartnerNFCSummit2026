@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { and, desc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db.js';
 import { getOrCreateSession } from '@/lib/session.js';
 import { chat } from '@/lib/claude.js';
@@ -12,6 +12,39 @@ export const dynamic = 'force-dynamic';
 
 const HISTORY_LIMIT = 20;
 const RETRIEVAL_TOP_K = 6;
+
+// GET /api/chat — return conversation history + session state so the
+// frontend can rehydrate after a page reload or returning visit.
+export async function GET() {
+  try {
+    const { session } = await getOrCreateSession();
+    const rows = await db
+      .select({
+        id: schema.conversations.id,
+        role: schema.conversations.role,
+        content: schema.conversations.content,
+        createdAt: schema.conversations.createdAt,
+      })
+      .from(schema.conversations)
+      .where(eq(schema.conversations.sessionId, session.id))
+      .orderBy(asc(schema.conversations.createdAt));
+    return NextResponse.json({
+      success: true,
+      data: {
+        sessionId: session.id,
+        status: session.status,
+        language: session.language,
+        messages: rows,
+      },
+    });
+  } catch (err) {
+    console.error('[api/chat GET] failed', err);
+    return NextResponse.json(
+      { success: false, error: err.message ?? 'history fetch failed' },
+      { status: 500 },
+    );
+  }
+}
 
 // POST /api/chat { message: string }
 // Returns: { success, data: { reply, sessionId, status } }

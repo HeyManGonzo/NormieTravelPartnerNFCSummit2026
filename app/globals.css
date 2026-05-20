@@ -1,17 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Cabinet Grotesk", system-ui, sans-serif;
-  --font-body: "Switzer", system-ui, sans-serif;
+  --font-display: "Clash Display", system-ui, sans-serif;
+  --font-body: "Satoshi", system-ui, sans-serif;
 
-  --color-bg: #0b0b0f;
-  --color-surface: #16161d;
-  --color-surface-2: #1f1f2a;
-  --color-border: #2a2a36;
-  --color-text: #f4f4f5;
-  --color-muted: #9b9bab;
-  --color-accent: #ff5b3a;
-  --color-accent-soft: #2a1812;
+  --color-bg: #07070a;
+  --color-surface: #101015;
+  --color-surface-2: #16161d;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-text: #fafafa;
+  --color-muted: #8a8a96;
+  --color-accent: #d9ff00;
+  --color-accent-text: #07070a;
+  --color-accent-soft: rgba(217, 255, 0, 0.12);
+  --color-danger: #ff5b6e;
 }
 
 html,
@@ -19,6 +22,7 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
+  font-feature-settings: "ss01", "cv11";
 }
 
 h1,
@@ -26,5 +30,35 @@ h2,
 h3,
 h4 {
   font-family: var(--font-display);
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+/* Subtle scrollbars inside scroll containers. */
+.scroll-area::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-area::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 3px;
+}
+.scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Pulsing dot used by the typing indicator. */
+@keyframes nfc-pulse {
+  0%, 80%, 100% { opacity: 0.2; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+.nfc-dot {
+  animation: nfc-pulse 1.2s infinite ease-in-out;
+}
+.nfc-dot:nth-child(2) { animation-delay: 0.15s; }
+.nfc-dot:nth-child(3) { animation-delay: 0.3s; }
