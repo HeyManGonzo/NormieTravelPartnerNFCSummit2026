@@ -1,0 +1,36 @@
+{
+  "name": "nfc-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "seed:kb": "node scripts/seed-knowledge-base.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.97.1",
+    "@pinecone-database/pinecone": "^7.2.0",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.16.0",
+    "nanoid": "^5.1.11",
+    "next": "^14.2.35",
+    "postgres": "^3.4.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.0",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^4.3.0"
+  }
+}

@@ -1,0 +1,67 @@
+[
+  {
+    "id": "maat",
+    "type": "gallery",
+    "name": "MAAT — Museum of Art, Architecture and Technology",
+    "description": "Riverside museum on the Tagus exploring the intersection of art, technology, and architecture. Strong contemporary programme; particularly relevant for digital art audiences.",
+    "address": "Av. Brasília, 1300-598 Lisboa",
+    "neighbourhood": "Belém",
+    "coordinates": { "lat": 38.6961, "lng": -9.1936 },
+    "priceRange": "budget",
+    "openingHours": { "wed": "10:00-19:00", "thu": "10:00-19:00", "fri": "10:00-19:00", "sat": "10:00-19:00", "sun": "10:00-19:00", "mon": "10:00-19:00" },
+    "tags": ["contemporary", "digital-art", "architecture", "riverside"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "culturgest",
+    "type": "gallery",
+    "name": "Culturgest",
+    "description": "Major contemporary art and performance venue inside the CGD headquarters. Ambitious exhibitions, talks, dance, and experimental music.",
+    "address": "R. Arco do Cego 50, 1000-300 Lisboa",
+    "neighbourhood": "Avenidas Novas",
+    "coordinates": { "lat": 38.7395, "lng": -9.1432 },
+    "priceRange": "budget",
+    "openingHours": { "wed": "10:00-19:00", "thu": "10:00-19:00", "fri": "10:00-19:00", "sat": "11:00-20:00", "sun": "11:00-20:00" },
+    "tags": ["contemporary", "performance", "experimental", "talks"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "gulbenkian-modern",
+    "type": "gallery",
+    "name": "Centro de Arte Moderna Gulbenkian",
+    "description": "Recently re-opened modern art wing of the Gulbenkian, with a Kengo Kuma garden pavilion. Strong holdings of 20th-century Portuguese art.",
+    "address": "R. Dr. Nicolau de Bettencourt, 1050-078 Lisboa",
+    "neighbourhood": "Avenidas Novas",
+    "coordinates": { "lat": 38.7370, "lng": -9.1538 },
+    "priceRange": "budget",
+    "openingHours": { "wed": "10:00-18:00", "thu": "10:00-18:00", "fri": "10:00-18:00", "sat": "10:00-18:00", "sun": "10:00-18:00", "mon": "10:00-18:00" },
+    "tags": ["modern-art", "garden", "portuguese-art", "architecture"],
+    "nfcRelevant": false
+  },
+  {
+    "id": "underdogs-gallery",
+    "type": "gallery",
+    "name": "Underdogs Gallery",
+    "description": "Vhils' gallery in Marvila representing leading urban contemporary and street artists. Often hosts large-scale interventions across Lisbon.",
+    "address": "R. Fernando Palha, Armazém 56, 1950-132 Lisboa",
+    "neighbourhood": "Marvila",
+    "coordinates": { "lat": 38.7395, "lng": -9.1009 },
+    "priceRange": "free",
+    "openingHours": { "tue": "14:00-19:00", "wed": "14:00-19:00", "thu": "14:00-19:00", "fri": "14:00-19:00", "sat": "14:00-19:00" },
+    "tags": ["street-art", "contemporary", "urban", "free-entry"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "carpintarias-de-sao-lazaro",
+    "type": "gallery",
+    "name": "Carpintarias de São Lázaro",
+    "description": "Independent art and performance space in a converted carpentry workshop. Multidisciplinary programme spanning digital art, performance, and music.",
+    "address": "R. de São Lázaro 72, 1150-333 Lisboa",
+    "neighbourhood": "Intendente",
+    "coordinates": { "lat": 38.7202, "lng": -9.1377 },
+    "priceRange": "budget",
+    "openingHours": { "tue": "14:00-20:00", "wed": "14:00-20:00", "thu": "14:00-20:00", "fri": "14:00-20:00", "sat": "14:00-20:00" },
+    "tags": ["independent", "multidisciplinary", "digital-art", "performance"],
+    "nfcRelevant": true
+  }
+]

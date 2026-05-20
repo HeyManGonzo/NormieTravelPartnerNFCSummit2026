@@ -1,0 +1,67 @@
+[
+  {
+    "id": "alfama",
+    "type": "landmark",
+    "name": "Alfama",
+    "description": "The oldest neighbourhood in Lisbon, surviving the 1755 earthquake. A tangle of medieval lanes climbing from the river to São Jorge castle, full of fado, tile-clad façades, and tiny taverns.",
+    "address": "Alfama, Lisboa",
+    "neighbourhood": "Alfama",
+    "coordinates": { "lat": 38.7115, "lng": -9.1300 },
+    "priceRange": "free",
+    "openingHours": { "mon": "00:00-23:59" },
+    "tags": ["historic", "fado", "walking", "azulejos"],
+    "nfcRelevant": false
+  },
+  {
+    "id": "principe-real",
+    "type": "landmark",
+    "name": "Príncipe Real",
+    "description": "Elegant 19th-century neighbourhood north of Bairro Alto, with concept stores, design hotels, a leafy garden square, and some of the city's best independent restaurants.",
+    "address": "Príncipe Real, Lisboa",
+    "neighbourhood": "Príncipe Real",
+    "coordinates": { "lat": 38.7167, "lng": -9.1488 },
+    "priceRange": "free",
+    "openingHours": { "mon": "00:00-23:59" },
+    "tags": ["design", "shopping", "elegant", "restaurants"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "marvila",
+    "type": "landmark",
+    "name": "Marvila",
+    "description": "Post-industrial eastern district reborn as Lisbon's creative quarter — galleries, breweries, design studios, riverside warehouses. Where much of the contemporary art scene lives.",
+    "address": "Marvila, Lisboa",
+    "neighbourhood": "Marvila",
+    "coordinates": { "lat": 38.7398, "lng": -9.1010 },
+    "priceRange": "free",
+    "openingHours": { "mon": "00:00-23:59" },
+    "tags": ["creative", "galleries", "breweries", "post-industrial"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "alcantara",
+    "type": "landmark",
+    "name": "Alcântara",
+    "description": "Riverside district under the 25 de Abril bridge, home to LX Factory and Unicorn Factory Lisboa — the NFC Summit venue. Mix of industrial heritage and creative reuse.",
+    "address": "Alcântara, Lisboa",
+    "neighbourhood": "Alcântara",
+    "coordinates": { "lat": 38.7036, "lng": -9.1755 },
+    "priceRange": "free",
+    "openingHours": { "mon": "00:00-23:59" },
+    "tags": ["near-venue", "creative", "industrial", "riverside"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "chiado",
+    "type": "landmark",
+    "name": "Chiado",
+    "description": "Lisbon's elegant cultural heart — bookshops, the National Theatre, historic cafés, and a smooth gradient down to the river. Where most first-time visitors land.",
+    "address": "Chiado, Lisboa",
+    "neighbourhood": "Chiado",
+    "coordinates": { "lat": 38.7110, "lng": -9.1421 },
+    "priceRange": "free",
+    "openingHours": { "mon": "00:00-23:59" },
+    "tags": ["cultural", "central", "historic", "shopping"],
+    "nfcRelevant": false
+  }
+]

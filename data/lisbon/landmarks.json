@@ -1,0 +1,80 @@
+[
+  {
+    "id": "miradouro-senhora-do-monte",
+    "type": "landmark",
+    "name": "Miradouro da Senhora do Monte",
+    "description": "The highest viewpoint in central Lisbon, with a 270° panorama from Alfama to the river. Quiet at sunrise, busy at sunset.",
+    "address": "Largo Monte, 1170-107 Lisboa",
+    "neighbourhood": "Graça",
+    "coordinates": { "lat": 38.7196, "lng": -9.1313 },
+    "priceRange": "free",
+    "openingHours": { "mon": "00:00-23:59", "tue": "00:00-23:59", "wed": "00:00-23:59", "thu": "00:00-23:59", "fri": "00:00-23:59", "sat": "00:00-23:59", "sun": "00:00-23:59" },
+    "tags": ["viewpoint", "sunset", "free", "panorama"],
+    "nfcRelevant": false
+  },
+  {
+    "id": "alfama-walk",
+    "type": "landmark",
+    "name": "Alfama neighbourhood walk",
+    "description": "Lisbon's oldest quarter — winding cobbled lanes, azulejo-clad façades, fado bars, and surprise river views. Wear good shoes.",
+    "address": "Alfama, Lisboa",
+    "neighbourhood": "Alfama",
+    "coordinates": { "lat": 38.7115, "lng": -9.1300 },
+    "priceRange": "free",
+    "openingHours": { "mon": "00:00-23:59", "tue": "00:00-23:59", "wed": "00:00-23:59", "thu": "00:00-23:59", "fri": "00:00-23:59", "sat": "00:00-23:59", "sun": "00:00-23:59" },
+    "tags": ["walking", "historic", "free", "azulejos"],
+    "nfcRelevant": false
+  },
+  {
+    "id": "lx-factory",
+    "type": "landmark",
+    "name": "LX Factory",
+    "description": "Reclaimed industrial complex under the 25 de Abril bridge, packed with design shops, bookstores, restaurants, and street art. Walkable from Unicorn Factory.",
+    "address": "R. Rodrigues de Faria 103, 1300-501 Lisboa",
+    "neighbourhood": "Alcântara",
+    "coordinates": { "lat": 38.7032, "lng": -9.1789 },
+    "priceRange": "free",
+    "openingHours": { "mon": "06:00-04:00", "tue": "06:00-04:00", "wed": "06:00-04:00", "thu": "06:00-04:00", "fri": "06:00-04:00", "sat": "06:00-04:00", "sun": "06:00-04:00" },
+    "tags": ["creative-hub", "shopping", "food", "near-venue"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "jeronimos-monastery",
+    "type": "landmark",
+    "name": "Jerónimos Monastery",
+    "description": "UNESCO-listed Manueline masterpiece in Belém, commissioned to celebrate Vasco da Gama's voyage. Pair with a pastel de Belém afterwards.",
+    "address": "Praça do Império 1400-206 Lisboa",
+    "neighbourhood": "Belém",
+    "coordinates": { "lat": 38.6979, "lng": -9.2065 },
+    "priceRange": "budget",
+    "openingHours": { "tue": "09:30-18:00", "wed": "09:30-18:00", "thu": "09:30-18:00", "fri": "09:30-18:00", "sat": "09:30-18:00", "sun": "09:30-18:00" },
+    "tags": ["unesco", "historic", "architecture", "belem"],
+    "nfcRelevant": false
+  },
+  {
+    "id": "tram-28",
+    "type": "landmark",
+    "name": "Tram 28 ride",
+    "description": "Iconic yellow tram that rattles from Martim Moniz through Graça, Alfama, Baixa, Chiado, and Estrela. Board early morning to avoid crowds and pickpockets.",
+    "address": "Martim Moniz to Campo Ourique, Lisboa",
+    "neighbourhood": "Various",
+    "coordinates": { "lat": 38.7156, "lng": -9.1353 },
+    "priceRange": "budget",
+    "openingHours": { "mon": "06:00-22:00", "tue": "06:00-22:00", "wed": "06:00-22:00", "thu": "06:00-22:00", "fri": "06:00-22:00", "sat": "06:00-22:00", "sun": "06:00-22:00" },
+    "tags": ["iconic", "transport", "city-tour", "morning"],
+    "nfcRelevant": false
+  },
+  {
+    "id": "calouste-gulbenkian-museum",
+    "type": "landmark",
+    "name": "Calouste Gulbenkian Museum",
+    "description": "World-class private collection spanning Egyptian, Greco-Roman, Islamic, and European art, set in a serene modernist building and garden.",
+    "address": "Av. de Berna 45A, 1067-001 Lisboa",
+    "neighbourhood": "Avenidas Novas",
+    "coordinates": { "lat": 38.7369, "lng": -9.1542 },
+    "priceRange": "budget",
+    "openingHours": { "wed": "10:00-18:00", "thu": "10:00-18:00", "fri": "10:00-18:00", "sat": "10:00-18:00", "sun": "10:00-18:00", "mon": "10:00-18:00" },
+    "tags": ["museum", "collection", "garden", "indoor-rainy-day"],
+    "nfcRelevant": false
+  }
+]

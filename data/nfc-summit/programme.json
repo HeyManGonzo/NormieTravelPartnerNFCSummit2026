@@ -1,0 +1,38 @@
+{
+  "event": {
+    "id": "nfc-summit-2026",
+    "name": "NFC Summit 2026",
+    "venue": "Unicorn Factory Lisboa",
+    "address": "Rua Maria Pia 76, 1350-219 Lisboa",
+    "neighbourhood": "Alcântara",
+    "coordinates": { "lat": 38.7036, "lng": -9.1755 },
+    "startDate": "2026-06-04",
+    "endDate": "2026-06-06",
+    "url": "https://nfcsummit.io",
+    "summary": "Three-day digital arts conference focused on NFTs, generative art, and Web3 culture. Attendees include artists, collectors, curators, and Web3-native professionals."
+  },
+  "days": [
+    {
+      "date": "2026-06-04",
+      "label": "Day 1 — Opening",
+      "themes": ["opening keynotes", "exhibitions launch", "collector receptions"],
+      "doorsOpen": "09:30",
+      "doorsClose": "19:00"
+    },
+    {
+      "date": "2026-06-05",
+      "label": "Day 2 — Talks & Panels",
+      "themes": ["artist talks", "curator panels", "studio showcases"],
+      "doorsOpen": "09:30",
+      "doorsClose": "19:00"
+    },
+    {
+      "date": "2026-06-06",
+      "label": "Day 3 — Closing & Community",
+      "themes": ["community sessions", "workshop demos", "closing party"],
+      "doorsOpen": "09:30",
+      "doorsClose": "23:00"
+    }
+  ],
+  "notes": "Detailed talk schedule and side-events will be added closer to the date. The official programme is the source of truth — link out to nfcsummit.io for the latest."
+}
