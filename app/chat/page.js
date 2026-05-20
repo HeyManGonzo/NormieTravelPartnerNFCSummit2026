@@ -15,6 +15,7 @@ export default function ChatPage() {
   const [pendingLabel, setPendingLabel] = useState(null);
   const [status, setStatus] = useState('onboarding');
   const [itinerary, setItinerary] = useState(null);
+  const [shareToken, setShareToken] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const bootstrapped = useRef(false);
 
@@ -29,6 +30,7 @@ export default function ChatPage() {
           ...json.data.itinerary,
           version: json.data.version,
         });
+        if (json.data.shareToken) setShareToken(json.data.shareToken);
       }
     } catch {
       // non-fatal
@@ -119,6 +121,7 @@ export default function ChatPage() {
                 ...gen.data.itinerary,
                 version: gen.data.version,
               });
+              if (gen.data.shareToken) setShareToken(gen.data.shareToken);
               setPanelOpen(true);
             }
             if (gen.data.reply) {
@@ -201,6 +204,7 @@ export default function ChatPage() {
                 itinerary={itinerary}
                 locale={locale}
                 onClose={() => setPanelOpen(false)}
+                shareToken={shareToken}
               />
             </div>
           </>

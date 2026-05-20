@@ -6,13 +6,13 @@ import { SUPPORTED_LOCALES, getMessages } from '@/lib/i18n';
 
 export default function LanguageSwitcher({ value = 'en', onChange }) {
   const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(value);
+  const current = value;
   const labels = getMessages(current).languages;
 
   async function pick(loc) {
     setOpen(false);
     if (loc === current) return;
-    setCurrent(loc);
+    onChange?.(loc);
     try {
       await fetch('/api/session', {
         method: 'PATCH',
@@ -20,9 +20,8 @@ export default function LanguageSwitcher({ value = 'en', onChange }) {
         body: JSON.stringify({ language: loc }),
       });
     } catch {
-      // Non-blocking: UI language still updates locally.
+      // Non-blocking: UI language still updates locally via parent state.
     }
-    onChange?.(loc);
   }
 
   return (

@@ -1,7 +1,9 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import DayBlock from './DayBlock';
+import ExportBar from './ExportBar';
 import { getMessages } from '@/lib/i18n';
 
 export default function ItineraryView({
@@ -9,33 +11,52 @@ export default function ItineraryView({
   locale = 'en',
   onClose,
   loading = false,
+  shareToken,
 }) {
   const msgs = getMessages(locale).itinerary;
+  const [shareUrl, setShareUrl] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && shareToken) {
+      setShareUrl(`${window.location.origin}/itinerary/${shareToken}`);
+    } else {
+      setShareUrl('');
+    }
+  }, [shareToken]);
 
   return (
     <aside className="flex h-full flex-col bg-[color:var(--color-bg)]">
-      <header className="flex items-center justify-between gap-4 border-b border-[color:var(--color-border)] px-5 py-4">
-        <div>
-          <div className="font-display text-[10px] uppercase tracking-[0.24em] text-[color:var(--color-accent)]">
-            {msgs.title}
-          </div>
-          {itinerary?.trip && (
-            <div className="mt-1 text-xs text-[color:var(--color-muted)]">
-              {itinerary.trip.arrivalDate} → {itinerary.trip.departureDate}
-              {itinerary.version ? ` · ${msgs.version} ${itinerary.version}` : ''}
+      <header className="space-y-3 border-b border-[color:var(--color-border)] px-5 py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="font-display text-[10px] uppercase tracking-[0.24em] text-[color:var(--color-accent)]">
+              {msgs.title}
             </div>
+            {itinerary?.trip && (
+              <div className="mt-1 text-xs text-[color:var(--color-muted)]">
+                {itinerary.trip.arrivalDate} → {itinerary.trip.departureDate}
+                {itinerary.version ? ` · ${msgs.version} ${itinerary.version}` : ''}
+              </div>
+            )}
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={msgs.close}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[color:var(--color-border)] text-[color:var(--color-muted)] hover:text-[color:var(--color-text)]"
+            >
+              <X size={16} />
+            </button>
           )}
         </div>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={msgs.close}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--color-border)] text-[color:var(--color-muted)] hover:text-[color:var(--color-text)]"
-          >
-            <X size={16} />
-          </button>
-        )}
+        {itinerary?.days?.length ? (
+          <ExportBar
+            shareUrl={shareUrl}
+            locale={locale}
+            labels={msgs.exports}
+          />
+        ) : null}
       </header>
 
       <div className="scroll-area flex-1 overflow-y-auto px-5 py-6">

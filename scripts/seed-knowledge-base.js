@@ -12,6 +12,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { embedTexts } from '../lib/embeddings.js';
+import { enrichWithPlaces } from '../lib/apis/places.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '..', 'data');
@@ -63,9 +64,9 @@ function toEmbeddingText(entry) {
   return parts.filter(Boolean).join('. ');
 }
 
-function toPineconeMetadata(entry) {
+function toPineconeMetadata(entry, places) {
   // Pinecone metadata values must be primitive or arrays of strings.
-  return {
+  const base = {
     type: entry.type ?? '',
     name: entry.name ?? '',
     description: entry.description ?? '',
@@ -76,6 +77,17 @@ function toPineconeMetadata(entry) {
     nfcRelevant: Boolean(entry.nfcRelevant),
     lat: entry.coordinates?.lat ?? 0,
     lng: entry.coordinates?.lng ?? 0,
+  };
+  if (!places) return base;
+  return {
+    ...base,
+    googlePlaceId: places.googlePlaceId ?? '',
+    googleRating: places.googleRating ?? 0,
+    googleRatingCount: places.googleRatingCount ?? 0,
+    googleWebsite: places.googleWebsite ?? '',
+    googleOpeningHours: places.googleOpeningHours ?? [],
+    googlePriceLevel: String(places.googlePriceLevel ?? ''),
+    googleAddress: places.googleAddress ?? '',
   };
 }
 
@@ -89,6 +101,13 @@ async function main() {
   const entries = await loadAllEntries();
   console.log(`Loaded ${entries.length} entries from /data`);
 
+  const placesEnabled = Boolean(process.env.GOOGLE_PLACES_API_KEY);
+  if (placesEnabled) {
+    console.log('Google Places enrichment: ENABLED');
+  } else {
+    console.log('Google Places enrichment: skipped (no GOOGLE_PLACES_API_KEY)');
+  }
+
   const pinecone = new Pinecone({ apiKey });
   const index = pinecone.index(indexName);
 
@@ -100,11 +119,19 @@ async function main() {
     const vectors = await embedTexts(texts, 'document');
     console.log(`    voyage returned ${vectors.length} vectors (dim ${vectors[0]?.length ?? 'n/a'})`);
 
+    // Opportunistically enrich each entry with Places data in parallel.
+    // Returns null (no-op) when the key is absent or no match is found.
+    const enriched = placesEnabled
+      ? await Promise.all(
+          batch.map((entry) => enrichWithPlaces(entry).catch(() => null)),
+        )
+      : batch.map(() => null);
+
     const records = batch
       .map((entry, idx) => ({
         id: entry.id,
         values: vectors[idx],
-        metadata: toPineconeMetadata(entry),
+        metadata: toPineconeMetadata(entry, enriched[idx]),
       }))
       .filter((r) => Array.isArray(r.values) && r.values.length > 0);
 
