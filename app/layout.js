@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
 export const metadata = {
@@ -17,7 +18,10 @@ export default function RootLayout({ children }) {
           href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=satoshi@400,500,700&display=swap"
         />
       </head>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }

@@ -148,7 +148,15 @@ export default async function HomePage() {
       </section>
 
       <footer className="px-6 py-6 text-center text-[10px] uppercase tracking-[0.24em] text-[color:var(--color-muted)] sm:px-10">
-        Unicorn Factory Lisboa · Built for visitors of NFC Summit 2026
+        Built for visitors of NFC Summit 2026 · Made by{' '}
+        <a
+          href="https://x.com/heymangonzo"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[color:var(--color-accent)] transition hover:opacity-80"
+        >
+          @heymangonzo
+        </a>
       </footer>
     </main>
   );
