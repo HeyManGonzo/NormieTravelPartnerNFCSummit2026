@@ -6,6 +6,7 @@ import { getOrCreateSession } from '@/lib/session.js';
 import { chat } from '@/lib/claude.js';
 import { searchKnowledgeBase } from '@/lib/retrieval.js';
 import { buildItinerary } from '@/lib/itinerary-builder.js';
+import { loadStaticCatalog, mergeWithStatic } from '@/lib/static-catalog.js';
 import { loadNfcProgramme } from '@/lib/nfc-programme.js';
 import {
   buildItineraryNarrationPrompt,
@@ -61,16 +62,30 @@ async function gatherCandidates(profile) {
     { type: 'bar', q: `Lisbon bars nightlife fado ${interests}` },
   ];
 
-  const results = await Promise.all(
-    queries.map(({ type, q }) =>
+  // Always start from the static catalog so the builder is never venue-starved
+  // when Pinecone is slow, unreachable, or returns malformed metadata.
+  const [staticEntries, ...retrieved] = await Promise.all([
+    loadStaticCatalog().catch((err) => {
+      console.warn('[api/itinerary] static catalog load failed:', err.message);
+      return [];
+    }),
+    ...queries.map(({ type, q }) =>
       searchKnowledgeBase(q, { topK: PER_TYPE_TOP_K, filter: { type } }).catch((err) => {
         console.warn(`[api/itinerary] retrieval failed for ${type}:`, err.message);
         return [];
       }),
     ),
-  );
+  ]);
 
-  return results.flat();
+  const merged = mergeWithStatic(staticEntries, retrieved.flat());
+
+  const counts = merged.reduce((acc, c) => {
+    acc[c.type] = (acc[c.type] ?? 0) + 1;
+    return acc;
+  }, {});
+  console.log('[api/itinerary] candidate pool:', counts);
+
+  return merged;
 }
 
 // POST /api/itinerary — regenerate the itinerary for the current session.
