@@ -102,5 +102,70 @@
     "openingHours": { "tue": "19:30-23:00", "wed": "19:30-23:00", "thu": "19:30-23:00", "fri": "19:30-23:00", "sat": "19:30-23:00" },
     "tags": ["vegetarian", "vegan-friendly", "intimate", "byo-wine"],
     "nfcRelevant": true
+  },
+  {
+    "id": "d-bacalhau",
+    "type": "restaurant",
+    "name": "D'Bacalhau",
+    "description": "Cod-focused Portuguese restaurant on the Parque das Nações riverfront, a short walk from the Unicorn Factory venue. Reliable lunch and dinner option for attendees who want a proper sit-down meal between sessions.",
+    "address": "R. da Pimenta 45, 1990-254 Lisboa",
+    "neighbourhood": "Parque das Nações",
+    "coordinates": { "lat": 38.7672, "lng": -9.0962 },
+    "priceRange": "midrange",
+    "openingHours": { "mon": "12:00-23:00", "tue": "12:00-23:00", "wed": "12:00-23:00", "thu": "12:00-23:00", "fri": "12:00-23:00", "sat": "12:00-23:00", "sun": "12:00-23:00" },
+    "tags": ["portuguese", "seafood", "codfish", "lunch", "near-venue", "parque-das-nacoes"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "honorato-parque-das-nacoes",
+    "type": "restaurant",
+    "name": "Honorato — Parque das Nações",
+    "description": "Lisbon burger chain with a Vasco da Gama mall location two minutes from the Unicorn Factory. Quick lunch, vegetarian patties available, easy in-and-out between conference sessions.",
+    "address": "Av. Dom João II, Centro Vasco da Gama, 1990-094 Lisboa",
+    "neighbourhood": "Parque das Nações",
+    "coordinates": { "lat": 38.7645, "lng": -9.0942 },
+    "priceRange": "budget",
+    "openingHours": { "mon": "12:00-23:00", "tue": "12:00-23:00", "wed": "12:00-23:00", "thu": "12:00-23:00", "fri": "12:00-23:00", "sat": "12:00-23:00", "sun": "12:00-23:00" },
+    "tags": ["burgers", "casual", "lunch", "vegetarian-option", "near-venue", "parque-das-nacoes", "quick"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "ao-26-vegan",
+    "type": "restaurant",
+    "name": "Ao 26 — Vegan Food Project",
+    "description": "Plant-based bistro in Chiado serving inventive vegan takes on Portuguese classics. Lunch menu, dinner à la carte, generous portions, central location.",
+    "address": "R. Vítor Cordon 26, 1200-484 Lisboa",
+    "neighbourhood": "Chiado",
+    "coordinates": { "lat": 38.7090, "lng": -9.1417 },
+    "priceRange": "budget",
+    "openingHours": { "mon": "12:30-22:30", "tue": "12:30-22:30", "wed": "12:30-22:30", "thu": "12:30-22:30", "fri": "12:30-22:30", "sat": "12:30-22:30", "sun": "12:30-22:30" },
+    "tags": ["vegan", "vegetarian", "plant-based", "lunch", "portuguese", "central"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "mercado-campo-ourique",
+    "type": "restaurant",
+    "name": "Mercado de Campo de Ourique",
+    "description": "Neighbourhood food market in Campo de Ourique — multiple stalls under one roof, more local feel than Time Out Market. Good lunch spot for groups with mixed tastes.",
+    "address": "R. Coelho da Rocha 104, 1350-075 Lisboa",
+    "neighbourhood": "Campo de Ourique",
+    "coordinates": { "lat": 38.7191, "lng": -9.1657 },
+    "priceRange": "budget",
+    "openingHours": { "mon": "10:00-23:00", "tue": "10:00-23:00", "wed": "10:00-23:00", "thu": "10:00-23:00", "fri": "10:00-00:00", "sat": "10:00-00:00", "sun": "10:00-23:00" },
+    "tags": ["food-hall", "lunch", "groups", "casual", "local"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "psi-restaurante",
+    "type": "restaurant",
+    "name": "PSI",
+    "description": "Long-running vegetarian and vegan restaurant tucked into a garden off Avenida da República, with Indian, Asian, and Mediterranean dishes. Calm sit-down lunch or dinner.",
+    "address": "Alameda Santo António dos Capuchos, 1150-314 Lisboa",
+    "neighbourhood": "Avenidas Novas",
+    "coordinates": { "lat": 38.7282, "lng": -9.1438 },
+    "priceRange": "midrange",
+    "openingHours": { "mon": "12:30-15:00,19:30-23:00", "tue": "12:30-15:00,19:30-23:00", "wed": "12:30-15:00,19:30-23:00", "thu": "12:30-15:00,19:30-23:00", "fri": "12:30-15:00,19:30-23:00", "sat": "12:30-15:00,19:30-23:00" },
+    "tags": ["vegetarian", "vegan", "plant-based", "garden", "lunch", "calm"],
+    "nfcRelevant": true
   }
 ]

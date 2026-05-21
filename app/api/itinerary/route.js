@@ -22,9 +22,9 @@ const PER_TYPE_TOP_K = 12;
 // has loaded. If any type drops below its floor, something is wrong (bundler
 // regression, accidental data deletion, etc.) and we want it loud in the logs.
 const POOL_FLOOR = {
-  restaurant: 8,
+  restaurant: 13,
   gallery: 5,
-  landmark: 12, // 6 landmark venues + 6 neighbourhood entries typed as landmark
+  landmark: 15, // 9 landmark venues + 6 neighbourhood entries typed as landmark
   bar: 6,
 };
 

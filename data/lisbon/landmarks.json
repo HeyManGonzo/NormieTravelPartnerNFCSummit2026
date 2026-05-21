@@ -76,5 +76,44 @@
     "openingHours": { "wed": "10:00-18:00", "thu": "10:00-18:00", "fri": "10:00-18:00", "sat": "10:00-18:00", "sun": "10:00-18:00", "mon": "10:00-18:00" },
     "tags": ["museum", "collection", "garden", "indoor-rainy-day"],
     "nfcRelevant": false
+  },
+  {
+    "id": "oceanario-de-lisboa",
+    "type": "landmark",
+    "name": "Oceanário de Lisboa",
+    "description": "Europe's largest indoor aquarium, anchored by a vast central tank visible from every gallery. Walking distance from the Unicorn Factory — a strong morning option on non-summit days.",
+    "address": "Esplanada Dom Carlos I s/nº, 1990-005 Lisboa",
+    "neighbourhood": "Parque das Nações",
+    "coordinates": { "lat": 38.7634, "lng": -9.0938 },
+    "priceRange": "midrange",
+    "openingHours": { "mon": "10:00-20:00", "tue": "10:00-20:00", "wed": "10:00-20:00", "thu": "10:00-20:00", "fri": "10:00-20:00", "sat": "10:00-20:00", "sun": "10:00-20:00" },
+    "tags": ["aquarium", "indoor", "iconic", "near-venue", "parque-das-nacoes", "family-friendly"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "telecabine-lisboa",
+    "type": "landmark",
+    "name": "Telecabine Lisboa",
+    "description": "Cable car ride along the Tagus riverfront in Parque das Nações, between the Oceanário and Torre Vasco da Gama. Quick, scenic, ten minutes from the conference venue.",
+    "address": "Passeio das Tágides, 1990-280 Lisboa",
+    "neighbourhood": "Parque das Nações",
+    "coordinates": { "lat": 38.7682, "lng": -9.0961 },
+    "priceRange": "budget",
+    "openingHours": { "mon": "11:00-19:00", "tue": "11:00-19:00", "wed": "11:00-19:00", "thu": "11:00-19:00", "fri": "11:00-19:00", "sat": "11:00-19:00", "sun": "11:00-19:00" },
+    "tags": ["cable-car", "scenic", "near-venue", "parque-das-nacoes", "short-activity"],
+    "nfcRelevant": true
+  },
+  {
+    "id": "parque-das-nacoes-riverside",
+    "type": "landmark",
+    "name": "Parque das Nações riverside walk",
+    "description": "Pedestrian promenade along the Tagus through the former Expo '98 grounds, taking in Calatrava's Oriente station, the Torre Vasco da Gama, and contemporary public art. The natural decompression route from the Unicorn Factory venue.",
+    "address": "Passeio do Tejo, 1990 Lisboa",
+    "neighbourhood": "Parque das Nações",
+    "coordinates": { "lat": 38.7665, "lng": -9.0945 },
+    "priceRange": "free",
+    "openingHours": { "mon": "00:00-23:59", "tue": "00:00-23:59", "wed": "00:00-23:59", "thu": "00:00-23:59", "fri": "00:00-23:59", "sat": "00:00-23:59", "sun": "00:00-23:59" },
+    "tags": ["walking", "riverside", "free", "near-venue", "parque-das-nacoes", "public-art", "architecture"],
+    "nfcRelevant": true
   }
 ]
