@@ -24,12 +24,15 @@ async function loadByToken(token) {
   return { ...row, ownerLanguage: owner?.language ?? 'en' };
 }
 
+const OPENSEA_URL =
+  'https://opensea.io/item/ethereum/0x9eb6e2025b64f340691e424b7fe7022ffde12438/6832';
+
 export async function generateMetadata({ params }) {
   const row = await loadByToken(params.shareToken);
-  if (!row) return { title: 'Itinerary not found · Norma' };
+  if (!row) return { title: 'Itinerary not found · Gemel' };
   return {
     title: 'Lisbon itinerary · NFC Summit 2026',
-    description: 'A Lisbon itinerary anchored around NFC Summit 2026, crafted by Norma.',
+    description: 'A Lisbon itinerary anchored around NFC Summit 2026, planned by Gemel — Normie #6832.',
   };
 }
 
@@ -48,12 +51,22 @@ export default async function PublicItineraryPage({ params }) {
     <main className="min-h-screen bg-[color:var(--color-bg)]">
       <header className="border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)]">
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-6 py-5">
-          <div>
-            <div className="font-display text-sm font-semibold uppercase tracking-[0.18em]">
-              Norma<span className="text-[color:var(--color-accent)]">.</span>
-            </div>
-            <div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
-              {doc.subtitle}
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/gemel.svg"
+              alt=""
+              aria-hidden
+              className="h-10 w-10 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-1"
+              style={{ imageRendering: 'pixelated' }}
+            />
+            <div>
+              <div className="font-display text-sm font-semibold uppercase tracking-[0.18em]">
+                Gemel<span className="text-[color:var(--color-accent)]">.</span>
+              </div>
+              <div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
+                {doc.subtitle}
+              </div>
             </div>
           </div>
           <ShareExportBar token={token} locale={locale} />
@@ -76,6 +89,16 @@ export default async function PublicItineraryPage({ params }) {
               {row.version ? ` · ${msgs.version} ${row.version}` : ''}
             </p>
           )}
+          <a
+            href={OPENSEA_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 inline-flex items-center gap-2 rounded-full border border-[color:var(--color-accent)]/40 bg-[color:var(--color-surface)] px-4 py-2 font-display text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-accent)] transition hover:bg-[color:var(--color-accent)]/10"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-accent)]" aria-hidden />
+            Planned by Gemel · Normie #6832
+            <span aria-hidden>↗</span>
+          </a>
         </div>
 
         <div className="space-y-12">

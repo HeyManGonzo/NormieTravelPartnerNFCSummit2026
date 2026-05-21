@@ -28,16 +28,26 @@ export default function ItineraryView({
     <aside className="flex h-full flex-col bg-[color:var(--color-bg)]">
       <header className="space-y-3 border-b border-[color:var(--color-border)] px-5 py-4">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="font-display text-[10px] uppercase tracking-[0.24em] text-[color:var(--color-accent)]">
-              {msgs.title}
-            </div>
-            {itinerary?.trip && (
-              <div className="mt-1 text-xs text-[color:var(--color-muted)]">
-                {itinerary.trip.arrivalDate} → {itinerary.trip.departureDate}
-                {itinerary.version ? ` · ${msgs.version} ${itinerary.version}` : ''}
+          <div className="flex items-start gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/gemel.svg"
+              alt=""
+              aria-hidden
+              className="mt-0.5 h-8 w-8 shrink-0 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-0.5"
+              style={{ imageRendering: 'pixelated' }}
+            />
+            <div>
+              <div className="font-display text-[10px] uppercase tracking-[0.24em] text-[color:var(--color-accent)]">
+                {msgs.title}
               </div>
-            )}
+              {itinerary?.trip && (
+                <div className="mt-1 text-xs text-[color:var(--color-muted)]">
+                  {itinerary.trip.arrivalDate} → {itinerary.trip.departureDate}
+                  {itinerary.version ? ` · ${msgs.version} ${itinerary.version}` : ''}
+                </div>
+              )}
+            </div>
           </div>
           {onClose && (
             <button

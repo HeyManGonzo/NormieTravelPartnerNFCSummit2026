@@ -84,9 +84,19 @@ export default function MessageBubble({ role, content }) {
     : 'bg-[color:var(--color-surface)] text-[color:var(--color-text)] border border-[color:var(--color-border)] rounded-2xl rounded-bl-sm';
 
   return (
-    <div className={`flex w-full ${wrapper}`}>
+    <div className={`flex w-full items-end gap-2 ${wrapper}`}>
+      {!isUser && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/gemel.svg"
+          alt=""
+          aria-hidden
+          className="h-8 w-8 shrink-0 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-0.5"
+          style={{ imageRendering: 'pixelated' }}
+        />
+      )}
       <div
-        className={`max-w-[88%] space-y-2 px-4 py-3 text-[15px] leading-relaxed sm:max-w-[78%] ${bubble}`}
+        className={`max-w-[82%] space-y-2 px-4 py-3 text-[15px] leading-relaxed sm:max-w-[74%] ${bubble}`}
       >
         {renderContent(content)}
       </div>

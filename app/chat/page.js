@@ -158,8 +158,16 @@ export default function ChatPage() {
     <main className="flex h-[100dvh] flex-col bg-[color:var(--color-bg)]">
       <header className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-3 sm:px-6">
         <Link href="/" className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/gemel.svg"
+            alt=""
+            aria-hidden
+            className="h-7 w-7"
+            style={{ imageRendering: 'pixelated' }}
+          />
           <span className="font-display text-sm font-semibold tracking-[0.18em] uppercase">
-            Norma<span className="text-[color:var(--color-accent)]">.</span>
+            Gemel<span className="text-[color:var(--color-accent)]">.</span>
           </span>
           <span className="hidden text-[10px] uppercase tracking-[0.18em] text-[color:var(--color-muted)] sm:inline">
             {t.status[status] ?? status}

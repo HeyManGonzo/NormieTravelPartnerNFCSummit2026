@@ -1,9 +1,9 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Norma — NFC Summit 2026 Visitor Concierge',
+  title: 'Gemel — NFC Summit 2026 Visitor Concierge',
   description:
-    'A conversational concierge for visitors of NFC Summit 2026 in Lisbon.',
+    'A conversational concierge for visitors of NFC Summit 2026 in Lisbon, planned by Gemel — Normie #6832.',
 };
 
 export default function RootLayout({ children }) {

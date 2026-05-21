@@ -89,7 +89,7 @@ export async function POST() {
         {
           success: false,
           error:
-            'Trip profile is incomplete. Keep chatting with Norma until arrival, departure, NFC days, group, budget, interests, and pace are all set.',
+            'Trip profile is incomplete. Keep chatting with Gemel until arrival, departure, NFC days, group, budget, interests, and pace are all set.',
         },
         { status: 400 },
       );
