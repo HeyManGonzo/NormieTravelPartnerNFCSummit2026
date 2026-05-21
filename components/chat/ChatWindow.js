@@ -13,6 +13,7 @@ export default function ChatWindow({
   placeholder,
   sendLabel,
   footer,
+  micSlot = null,
 }) {
   const scrollRef = useRef(null);
 
@@ -43,6 +44,7 @@ export default function ChatWindow({
             disabled={pending}
             placeholder={placeholder}
             sendLabel={sendLabel}
+            micSlot={micSlot}
           />
           {footer && (
             <div className="mt-2 text-center text-[10px] uppercase tracking-[0.18em] text-[color:var(--color-muted)]">

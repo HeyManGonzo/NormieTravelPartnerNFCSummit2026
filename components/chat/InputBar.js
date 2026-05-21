@@ -8,6 +8,7 @@ export default function InputBar({
   disabled = false,
   placeholder = 'Send a message',
   sendLabel = 'Send',
+  micSlot = null,
 }) {
   const [value, setValue] = useState('');
   const textareaRef = useRef(null);
@@ -35,6 +36,7 @@ export default function InputBar({
 
   return (
     <div className="flex items-end gap-2 rounded-3xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] focus-within:border-[color:var(--color-border-strong)]">
+      {micSlot}
       <textarea
         ref={textareaRef}
         rows={1}
