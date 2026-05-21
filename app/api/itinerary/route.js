@@ -18,6 +18,16 @@ export const dynamic = 'force-dynamic';
 
 const PER_TYPE_TOP_K = 12;
 
+// Minimum candidate counts we expect to see per type once the static catalog
+// has loaded. If any type drops below its floor, something is wrong (bundler
+// regression, accidental data deletion, etc.) and we want it loud in the logs.
+const POOL_FLOOR = {
+  restaurant: 8,
+  gallery: 5,
+  landmark: 12, // 6 landmark venues + 6 neighbourhood entries typed as landmark
+  bar: 6,
+};
+
 // GET /api/itinerary — return the most recent itinerary for the current session.
 export async function GET() {
   try {
@@ -84,6 +94,17 @@ async function gatherCandidates(profile) {
     return acc;
   }, {});
   console.log('[api/itinerary] candidate pool:', counts);
+
+  const shortfalls = Object.entries(POOL_FLOOR)
+    .filter(([type, floor]) => (counts[type] ?? 0) < floor)
+    .map(([type, floor]) => `${type}: ${counts[type] ?? 0}/${floor}`);
+  if (shortfalls.length) {
+    console.warn(
+      '[api/itinerary] candidate pool below floor:',
+      shortfalls.join(', '),
+      '— static catalog may have failed to load or data files were modified.',
+    );
+  }
 
   return merged;
 }
