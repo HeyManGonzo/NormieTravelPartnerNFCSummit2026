@@ -1,21 +1,22 @@
-// Embed every entry in /data/ and upsert into Pinecone.
-// Run with: npm run seed:kb
+// Embed every entry in /data/ and write the result to data/embeddings.json.
+// retrieval.js reads that file at module load and does cosine similarity
+// in-memory — no hosted vector DB required.
 //
-// Requires .env.local with VOYAGE_API_KEY, PINECONE_API_KEY, PINECONE_INDEX_NAME.
+// Run with: npm run seed:kb
+// Requires .env.local with VOYAGE_API_KEY.
 
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 config({ path: '.env' });
 
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Pinecone } from '@pinecone-database/pinecone';
 import { embedTexts } from '../lib/embeddings.js';
-import { enrichWithPlaces } from '../lib/apis/places.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '..', 'data');
+const OUT_FILE = join(DATA_DIR, 'embeddings.json');
 const BATCH_SIZE = 16;
 
 async function loadAllEntries() {
@@ -31,7 +32,9 @@ async function loadAllEntries() {
     for (const item of arr) entries.push(item);
   }
 
-  // NFC Summit programme — wrap the event itself as a single retrievable entry.
+  // NFC Summit programme — wrap the event itself as a single retrievable
+  // entry. lib/static-catalog.js builds the same shape at runtime, so the
+  // ids and tags here must stay in sync with programmeEntry() there.
   const programmeRaw = await readFile(
     join(DATA_DIR, 'nfc-summit', 'programme.json'),
     'utf8',
@@ -64,103 +67,39 @@ function toEmbeddingText(entry) {
   return parts.filter(Boolean).join('. ');
 }
 
-function toPineconeMetadata(entry, places) {
-  // Pinecone metadata values must be primitive or arrays of strings.
-  const base = {
-    type: entry.type ?? '',
-    name: entry.name ?? '',
-    description: entry.description ?? '',
-    address: entry.address ?? '',
-    neighbourhood: entry.neighbourhood ?? '',
-    priceRange: entry.priceRange ?? '',
-    tags: Array.isArray(entry.tags) ? entry.tags : [],
-    nfcRelevant: Boolean(entry.nfcRelevant),
-    lat: entry.coordinates?.lat ?? 0,
-    lng: entry.coordinates?.lng ?? 0,
-  };
-  if (!places) return base;
-  return {
-    ...base,
-    googlePlaceId: places.googlePlaceId ?? '',
-    googleRating: places.googleRating ?? 0,
-    googleRatingCount: places.googleRatingCount ?? 0,
-    googleWebsite: places.googleWebsite ?? '',
-    googleOpeningHours: places.googleOpeningHours ?? [],
-    googlePriceLevel: String(places.googlePriceLevel ?? ''),
-    googleAddress: places.googleAddress ?? '',
-  };
-}
-
 async function main() {
-  const apiKey = process.env.PINECONE_API_KEY;
-  const indexName = process.env.PINECONE_INDEX_NAME;
-  if (!apiKey || !indexName) {
-    throw new Error('Set PINECONE_API_KEY and PINECONE_INDEX_NAME in .env.local');
+  if (!process.env.VOYAGE_API_KEY) {
+    throw new Error('Set VOYAGE_API_KEY in .env.local');
   }
 
   const entries = await loadAllEntries();
   console.log(`Loaded ${entries.length} entries from /data`);
 
-  const placesEnabled = Boolean(process.env.GOOGLE_PLACES_API_KEY);
-  if (placesEnabled) {
-    console.log('Google Places enrichment: ENABLED');
-  } else {
-    console.log('Google Places enrichment: skipped (no GOOGLE_PLACES_API_KEY)');
-  }
-
-  const pinecone = new Pinecone({ apiKey });
-  const index = pinecone.index(indexName);
-
-  // Wipe the default namespace before seeding so removed entries (e.g. the
-  // old generic restaurants/galleries/nightlife sets) don't linger as stale
-  // matches once they're gone from /data/lisbon/.
-  try {
-    await index.deleteAll();
-    console.log('Cleared existing vectors in the default namespace.');
-  } catch (err) {
-    // 404 means the namespace was empty — safe to ignore. Anything else
-    // bubbles up so the operator notices.
-    if (err?.status !== 404) throw err;
-    console.log('Default namespace was empty; nothing to clear.');
-  }
-
-  let upserted = 0;
+  const vectors = {};
+  let dim = 0;
   for (let i = 0; i < entries.length; i += BATCH_SIZE) {
     const batch = entries.slice(i, i + BATCH_SIZE);
     const texts = batch.map(toEmbeddingText);
     console.log(`  batch ${i / BATCH_SIZE + 1}: embedding ${texts.length} texts...`);
-    const vectors = await embedTexts(texts, 'document');
-    console.log(`    voyage returned ${vectors.length} vectors (dim ${vectors[0]?.length ?? 'n/a'})`);
-
-    // Opportunistically enrich each entry with Places data in parallel.
-    // Returns null (no-op) when the key is absent or no match is found.
-    const enriched = placesEnabled
-      ? await Promise.all(
-          batch.map((entry) => enrichWithPlaces(entry).catch(() => null)),
-        )
-      : batch.map(() => null);
-
-    const records = batch
-      .map((entry, idx) => ({
-        id: entry.id,
-        values: vectors[idx],
-        metadata: toPineconeMetadata(entry, enriched[idx]),
-      }))
-      .filter((r) => Array.isArray(r.values) && r.values.length > 0);
-
-    if (records.length === 0) {
-      console.warn('    skipping upsert: no valid vectors in this batch');
-      continue;
+    const batchVectors = await embedTexts(texts, 'document');
+    if (!dim) dim = batchVectors[0]?.length ?? 0;
+    console.log(`    voyage returned ${batchVectors.length} vectors (dim ${dim || 'n/a'})`);
+    for (let j = 0; j < batch.length; j++) {
+      const v = batchVectors[j];
+      if (Array.isArray(v) && v.length > 0) vectors[batch[j].id] = v;
     }
-
-    // Pinecone SDK v7 changed the upsert signature: it now takes an options
-    // object with a `records` property instead of a bare array.
-    await index.upsert({ records });
-    upserted += records.length;
-    console.log(`  upserted ${upserted}/${entries.length}`);
   }
 
-  console.log('✓ Knowledge base seeded.');
+  const out = {
+    model: process.env.VOYAGE_MODEL || 'voyage-3',
+    dim,
+    generatedAt: new Date().toISOString(),
+    count: Object.keys(vectors).length,
+    vectors,
+  };
+
+  await writeFile(OUT_FILE, JSON.stringify(out) + '\n', 'utf8');
+  console.log(`✓ Wrote ${out.count} vectors to data/embeddings.json (${out.model}, dim ${dim}).`);
 }
 
 main().catch((err) => {

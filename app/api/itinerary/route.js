@@ -73,7 +73,7 @@ async function gatherCandidates(profile) {
   ];
 
   // Always start from the static catalog so the builder is never venue-starved
-  // when Pinecone is slow, unreachable, or returns malformed metadata.
+  // when the embedding step (Voyage API) is slow or returns malformed output.
   const [staticEntries, ...retrieved] = await Promise.all([
     loadStaticCatalog().catch((err) => {
       console.warn('[api/itinerary] static catalog load failed:', err.message);
