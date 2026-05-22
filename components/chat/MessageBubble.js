@@ -3,9 +3,19 @@
 // library to keep the bundle small and the output predictable.
 
 // Tolerates one space between ] and ( since the model sometimes emits
-// it; otherwise the link falls back to plain text.
-const LINK_RE = /\[([^\]]+)\]\s?\(([^)\s]+)\)/g;
+// it; otherwise the link falls back to plain text. The label group
+// accepts one level of nested square brackets so event titles like
+// "VIBE-A-THON [CoLab x NFC Summit]" still render as links.
+const LINK_RE = /\[((?:[^\[\]]+|\[[^\[\]]*\])+)\]\s?\(([^)\s]+)\)/g;
 const SAFE_HREF = /^(https?:\/\/|mailto:)/i;
+
+// Models sometimes wrap a link in bold (**[label](url)**), which leaves
+// dangling ** markers around our parsed link. Strip the wrapper before
+// rendering — the link styling already gives the label visual weight.
+const BOLD_LINK_RE = /\*\*(\[(?:[^\[\]]+|\[[^\[\]]*\])+\]\s?\([^)\s]+\))\*\*/g;
+function stripBoldLinkWrappers(text) {
+  return text.replace(BOLD_LINK_RE, '$1');
+}
 
 function renderTextChunk(text, keyPrefix) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
@@ -57,7 +67,7 @@ function renderInline(text, keyPrefix) {
 }
 
 function renderContent(content) {
-  const lines = content.split(/\r?\n/);
+  const lines = stripBoldLinkWrappers(content).split(/\r?\n/);
   const blocks = [];
   let listBuffer = null;
   let paraBuffer = null;
