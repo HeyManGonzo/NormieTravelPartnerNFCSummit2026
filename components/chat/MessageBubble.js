@@ -3,8 +3,10 @@
 // library to keep the bundle small and the output predictable.
 
 // Tolerates one space between ] and ( since the model sometimes emits
-// it; otherwise the link falls back to plain text.
-const LINK_RE = /\[([^\]]+)\]\s?\(([^)\s]+)\)/g;
+// it; otherwise the link falls back to plain text. The label group
+// accepts one level of nested square brackets so event titles like
+// "VIBE-A-THON [CoLab x NFC Summit]" still render as links.
+const LINK_RE = /\[((?:[^\[\]]+|\[[^\[\]]*\])+)\]\s?\(([^)\s]+)\)/g;
 const SAFE_HREF = /^(https?:\/\/|mailto:)/i;
 
 function renderTextChunk(text, keyPrefix) {
