@@ -1,10 +1,14 @@
-// Lightweight markdown rendering for chat: paragraphs, **bold**, and
-// simple "- " bullet lists. We avoid a markdown library to keep the
-// bundle small and the output predictable.
+// Lightweight markdown rendering for chat: paragraphs, **bold**,
+// [text](url) links, and simple "- " bullet lists. We avoid a markdown
+// library to keep the bundle small and the output predictable.
 
-function renderInline(text, keyPrefix) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
+// Tolerates one space between ] and ( since the model sometimes emits
+// it; otherwise the link falls back to plain text.
+const LINK_RE = /\[([^\]]+)\]\s?\(([^)\s]+)\)/g;
+const SAFE_HREF = /^(https?:\/\/|mailto:)/i;
+
+function renderTextChunk(text, keyPrefix) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
         <strong key={`${keyPrefix}-b-${i}`} className="font-semibold text-[color:var(--color-text)]">
@@ -14,6 +18,42 @@ function renderInline(text, keyPrefix) {
     }
     return <span key={`${keyPrefix}-t-${i}`}>{part}</span>;
   });
+}
+
+function renderInline(text, keyPrefix) {
+  const out = [];
+  let last = 0;
+  let m;
+  let i = 0;
+  LINK_RE.lastIndex = 0;
+  while ((m = LINK_RE.exec(text)) !== null) {
+    if (m.index > last) {
+      out.push(...renderTextChunk(text.slice(last, m.index), `${keyPrefix}-${i}`));
+      i += 1;
+    }
+    const [, label, href] = m;
+    if (SAFE_HREF.test(href)) {
+      out.push(
+        <a
+          key={`${keyPrefix}-a-${i}`}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline decoration-[color:var(--color-accent)] decoration-1 underline-offset-2 hover:opacity-80"
+        >
+          {label}
+        </a>,
+      );
+    } else {
+      out.push(<span key={`${keyPrefix}-a-${i}`}>{m[0]}</span>);
+    }
+    i += 1;
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) {
+    out.push(...renderTextChunk(text.slice(last), `${keyPrefix}-${i}`));
+  }
+  return out;
 }
 
 function renderContent(content) {
