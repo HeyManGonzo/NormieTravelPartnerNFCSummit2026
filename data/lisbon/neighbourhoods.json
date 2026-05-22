@@ -1,67 +1,339 @@
 [
   {
     "id": "alfama",
-    "type": "landmark",
+    "type": "neighbourhood",
     "name": "Alfama",
-    "description": "The oldest neighbourhood in Lisbon, surviving the 1755 earthquake. A tangle of medieval lanes climbing from the river to São Jorge castle, full of fado, tile-clad façades, and tiny taverns.",
+    "description": "Lisbon's oldest quarter, on the slope below São Jorge castle. Largely survived the 1755 earthquake; narrow cobbled lanes, traditional fado houses, and Tagus views.",
     "address": "Alfama, Lisboa",
     "neighbourhood": "Alfama",
-    "coordinates": { "lat": 38.7115, "lng": -9.1300 },
+    "coordinates": {
+      "lat": 38.7115,
+      "lng": -9.13
+    },
     "priceRange": "free",
-    "openingHours": { "mon": "00:00-23:59" },
-    "tags": ["historic", "fado", "walking", "azulejos"],
-    "nfcRelevant": false
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "historic",
+      "fado",
+      "walking",
+      "viewpoints"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
   },
   {
-    "id": "principe-real",
-    "type": "landmark",
-    "name": "Príncipe Real",
-    "description": "Elegant 19th-century neighbourhood north of Bairro Alto, with concept stores, design hotels, a leafy garden square, and some of the city's best independent restaurants.",
-    "address": "Príncipe Real, Lisboa",
-    "neighbourhood": "Príncipe Real",
-    "coordinates": { "lat": 38.7167, "lng": -9.1488 },
+    "id": "mouraria",
+    "type": "neighbourhood",
+    "name": "Mouraria",
+    "description": "Multicultural quarter on the north side of São Jorge castle, historically the Moorish district after the Christian reconquest of 1147. Widely considered the birthplace of fado.",
+    "address": "Mouraria, Lisboa",
+    "neighbourhood": "Mouraria",
+    "coordinates": {
+      "lat": 38.7165,
+      "lng": -9.1355
+    },
     "priceRange": "free",
-    "openingHours": { "mon": "00:00-23:59" },
-    "tags": ["design", "shopping", "elegant", "restaurants"],
-    "nfcRelevant": true
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "historic",
+      "multicultural",
+      "fado",
+      "walking"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
   },
   {
-    "id": "marvila",
-    "type": "landmark",
-    "name": "Marvila",
-    "description": "Post-industrial eastern district reborn as Lisbon's creative quarter — galleries, breweries, design studios, riverside warehouses. Where much of the contemporary art scene lives.",
-    "address": "Marvila, Lisboa",
-    "neighbourhood": "Marvila",
-    "coordinates": { "lat": 38.7398, "lng": -9.1010 },
+    "id": "graca",
+    "type": "neighbourhood",
+    "name": "Graça",
+    "description": "Hilltop residential neighbourhood above Alfama, anchored by the Graça and Senhora do Monte viewpoints. Quieter than the central quarters, with neighbourhood cafés and the National Pantheon nearby.",
+    "address": "Graça, Lisboa",
+    "neighbourhood": "Graça",
+    "coordinates": {
+      "lat": 38.7188,
+      "lng": -9.1312
+    },
     "priceRange": "free",
-    "openingHours": { "mon": "00:00-23:59" },
-    "tags": ["creative", "galleries", "breweries", "post-industrial"],
-    "nfcRelevant": true
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "residential",
+      "viewpoints",
+      "quiet",
+      "walking"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
   },
   {
-    "id": "alcantara",
-    "type": "landmark",
-    "name": "Alcântara",
-    "description": "Riverside district under the 25 de Abril bridge, home to LX Factory and Unicorn Factory Lisboa — the NFC Summit venue. Mix of industrial heritage and creative reuse.",
-    "address": "Alcântara, Lisboa",
-    "neighbourhood": "Alcântara",
-    "coordinates": { "lat": 38.7036, "lng": -9.1755 },
+    "id": "baixa",
+    "type": "neighbourhood",
+    "name": "Baixa",
+    "description": "The grid of Pombaline streets rebuilt after the 1755 earthquake, running from Rossio down to the river at Praça do Comércio. Pedestrianised main axes and the Santa Justa lift connecting up to Chiado.",
+    "address": "Baixa, Lisboa",
+    "neighbourhood": "Baixa",
+    "coordinates": {
+      "lat": 38.711,
+      "lng": -9.1373
+    },
     "priceRange": "free",
-    "openingHours": { "mon": "00:00-23:59" },
-    "tags": ["near-venue", "creative", "industrial", "riverside"],
-    "nfcRelevant": true
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "central",
+      "historic",
+      "shopping",
+      "walking"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
   },
   {
     "id": "chiado",
-    "type": "landmark",
+    "type": "neighbourhood",
     "name": "Chiado",
-    "description": "Lisbon's elegant cultural heart — bookshops, the National Theatre, historic cafés, and a smooth gradient down to the river. Where most first-time visitors land.",
+    "description": "Cultural quarter on the hill above Baixa — the São Carlos opera, the National Theatre, historic cafés like A Brasileira, and the main bookshops. Where most first-time visitors orient themselves.",
     "address": "Chiado, Lisboa",
     "neighbourhood": "Chiado",
-    "coordinates": { "lat": 38.7110, "lng": -9.1421 },
+    "coordinates": {
+      "lat": 38.711,
+      "lng": -9.1421
+    },
     "priceRange": "free",
-    "openingHours": { "mon": "00:00-23:59" },
-    "tags": ["cultural", "central", "historic", "shopping"],
-    "nfcRelevant": false
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "central",
+      "cultural",
+      "shopping",
+      "historic"
+    ],
+    "nfcRelevant": true,
+    "sponsored": false
+  },
+  {
+    "id": "bairro-alto",
+    "type": "neighbourhood",
+    "name": "Bairro Alto",
+    "description": "Grid of narrow streets above Chiado that goes quiet by day and turns into the city's late-night drinking quarter, with bars spilling out onto the pavement until well after midnight.",
+    "address": "Bairro Alto, Lisboa",
+    "neighbourhood": "Bairro Alto",
+    "coordinates": {
+      "lat": 38.7138,
+      "lng": -9.145
+    },
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "nightlife",
+      "bars",
+      "late-night",
+      "walking"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
+  },
+  {
+    "id": "principe-real",
+    "type": "neighbourhood",
+    "name": "Príncipe Real",
+    "description": "19th-century neighbourhood above Bairro Alto, built around the central garden square. Concept stores in the Embaixada palace, independent restaurants, design hotels.",
+    "address": "Príncipe Real, Lisboa",
+    "neighbourhood": "Príncipe Real",
+    "coordinates": {
+      "lat": 38.7167,
+      "lng": -9.1488
+    },
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "design",
+      "shopping",
+      "restaurants",
+      "garden"
+    ],
+    "nfcRelevant": true,
+    "sponsored": false
+  },
+  {
+    "id": "cais-do-sodre",
+    "type": "neighbourhood",
+    "name": "Cais do Sodré",
+    "description": "Riverside district at the western end of Baixa. Home to the Time Out Market in the Mercado da Ribeira, the Cascais train terminus, and the Pink Street nightlife strip on Rua Nova do Carvalho.",
+    "address": "Cais do Sodré, Lisboa",
+    "neighbourhood": "Cais do Sodré",
+    "coordinates": {
+      "lat": 38.7068,
+      "lng": -9.1459
+    },
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "central",
+      "riverside",
+      "nightlife",
+      "food-hall",
+      "transport"
+    ],
+    "nfcRelevant": true,
+    "sponsored": false
+  },
+  {
+    "id": "alcantara",
+    "type": "neighbourhood",
+    "name": "Alcântara",
+    "description": "Riverside district under the 25 de Abril bridge, west of the centre. Home to LX Factory and to Unicorn Factory Lisboa — the NFC Summit 2026 venue.",
+    "address": "Alcântara, Lisboa",
+    "neighbourhood": "Alcântara",
+    "coordinates": {
+      "lat": 38.7036,
+      "lng": -9.1755
+    },
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "near-venue",
+      "creative",
+      "industrial",
+      "riverside"
+    ],
+    "nfcRelevant": true,
+    "sponsored": false
+  },
+  {
+    "id": "lapa",
+    "type": "neighbourhood",
+    "name": "Lapa",
+    "description": "Quiet 19th-century neighbourhood west of the centre, home to many of Lisbon's embassies and to the Museu Nacional de Arte Antiga overlooking the river.",
+    "address": "Lapa, Lisboa",
+    "neighbourhood": "Lapa",
+    "coordinates": {
+      "lat": 38.708,
+      "lng": -9.162
+    },
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "residential",
+      "quiet",
+      "museum",
+      "elegant"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
+  },
+  {
+    "id": "belem",
+    "type": "neighbourhood",
+    "name": "Belém",
+    "description": "Riverside district at the western edge of the city, anchored by the Jerónimos Monastery, the Belém Tower, the MAAT museum, and the Pastéis de Belém bakery. Reachable from the centre by tram 15 or train.",
+    "address": "Belém, Lisboa",
+    "neighbourhood": "Belém",
+    "coordinates": {
+      "lat": 38.6979,
+      "lng": -9.2065
+    },
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "monuments",
+      "unesco",
+      "museums",
+      "riverside"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
+  },
+  {
+    "id": "avenidas-novas",
+    "type": "neighbourhood",
+    "name": "Avenidas Novas",
+    "description": "Early-20th-century planned extension north of the centre along Avenida da República. Business district with the Calouste Gulbenkian Museum and adjoining garden.",
+    "address": "Avenidas Novas, Lisboa",
+    "neighbourhood": "Avenidas Novas",
+    "coordinates": {
+      "lat": 38.7369,
+      "lng": -9.15
+    },
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "business",
+      "museum",
+      "modern",
+      "central"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
+  },
+  {
+    "id": "marvila",
+    "type": "neighbourhood",
+    "name": "Marvila",
+    "description": "Post-industrial district along the river east of the centre, repurposed into a creative quarter — galleries, breweries, design studios, riverside warehouses.",
+    "address": "Marvila, Lisboa",
+    "neighbourhood": "Marvila",
+    "coordinates": {
+      "lat": 38.7398,
+      "lng": -9.101
+    },
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "creative",
+      "galleries",
+      "breweries",
+      "post-industrial"
+    ],
+    "nfcRelevant": true,
+    "sponsored": false
+  },
+  {
+    "id": "parque-das-nacoes",
+    "type": "neighbourhood",
+    "name": "Parque das Nações",
+    "description": "Eastern riverside district built for Expo '98, around Santiago Calatrava's Oriente station. Anchored by the Oceanário, the Vasco da Gama tower and shopping centre, and the cable car along the Tagus.",
+    "address": "Parque das Nações, Lisboa",
+    "neighbourhood": "Parque das Nações",
+    "coordinates": {
+      "lat": 38.7665,
+      "lng": -9.0945
+    },
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "modern",
+      "riverside",
+      "architecture",
+      "family-friendly"
+    ],
+    "nfcRelevant": true,
+    "sponsored": false
   }
 ]

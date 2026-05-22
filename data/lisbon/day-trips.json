@@ -1,0 +1,138 @@
+[
+  {
+    "id": "sintra",
+    "type": "day-trip",
+    "name": "Sintra",
+    "description": "UNESCO-listed hill town 28 km north-west of Lisbon, set in a forested microclimate. Anchor sights: Palácio da Pena, Quinta da Regaleira, the Moorish castle, and the National Palace. CP suburban train from Rossio station, about 40 minutes; buy a Navegante day pass for the connecting 434/435 hop-on buses.",
+    "address": "Sintra, Portugal",
+    "neighbourhood": "Sintra",
+    "coordinates": {
+      "lat": 38.7979,
+      "lng": -9.3905
+    },
+    "distanceKm": 28,
+    "transit": "CP train from Rossio (~40 min)",
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "unesco",
+      "palaces",
+      "forest",
+      "day-trip",
+      "train-accessible"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
+  },
+  {
+    "id": "cascais",
+    "type": "day-trip",
+    "name": "Cascais",
+    "description": "Coastal town 30 km west of Lisbon, former fishing village turned summer resort of the Portuguese royal family. Historic centre, marina, Paula Rego museum (Casa das Histórias), and a chain of beaches running west toward Guincho. CP train from Cais do Sodré, about 40 minutes.",
+    "address": "Cascais, Portugal",
+    "neighbourhood": "Cascais",
+    "coordinates": {
+      "lat": 38.6979,
+      "lng": -9.4215
+    },
+    "distanceKm": 30,
+    "transit": "CP train from Cais do Sodré (~40 min)",
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "coast",
+      "beach",
+      "town",
+      "day-trip",
+      "train-accessible",
+      "museum"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
+  },
+  {
+    "id": "estoril",
+    "type": "day-trip",
+    "name": "Estoril",
+    "description": "Beachfront resort town on the Lisbon–Cascais line, between Carcavelos and Cascais. Famous for its casino, Belle Époque promenade, and gentle bay beach. Same CP line as Cascais, about 35 minutes from Cais do Sodré.",
+    "address": "Estoril, Portugal",
+    "neighbourhood": "Estoril",
+    "coordinates": {
+      "lat": 38.7053,
+      "lng": -9.3978
+    },
+    "distanceKm": 25,
+    "transit": "CP train from Cais do Sodré (~35 min)",
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "coast",
+      "beach",
+      "casino",
+      "day-trip",
+      "train-accessible"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
+  },
+  {
+    "id": "carcavelos",
+    "type": "day-trip",
+    "name": "Carcavelos",
+    "description": "Long sandy beach on the Cascais line, 15 km west of Lisbon. The closest swimmable Atlantic beach to the city and Lisbon's main surf school hub for beginners. CP train from Cais do Sodré, about 25 minutes.",
+    "address": "Carcavelos, Portugal",
+    "neighbourhood": "Carcavelos",
+    "coordinates": {
+      "lat": 38.6786,
+      "lng": -9.328
+    },
+    "distanceKm": 15,
+    "transit": "CP train from Cais do Sodré (~25 min)",
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "beach",
+      "surf",
+      "day-trip",
+      "train-accessible",
+      "closest-beach"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
+  },
+  {
+    "id": "guincho",
+    "type": "day-trip",
+    "name": "Guincho",
+    "description": "Wild Atlantic beach inside the Sintra-Cascais Natural Park, 7 km north-west of Cascais. Reliably windy — a long-standing windsurfing and kitesurfing spot — backed by dunes and Cabo da Roca, continental Europe's westernmost point. Reached by car or by the 415 bus from Cascais station.",
+    "address": "Praia do Guincho, Cascais, Portugal",
+    "neighbourhood": "Guincho",
+    "coordinates": {
+      "lat": 38.7331,
+      "lng": -9.4731
+    },
+    "distanceKm": 38,
+    "transit": "Train to Cascais + 415 bus, or car (~45 min)",
+    "priceRange": "free",
+    "openingHours": {
+      "mon": "00:00-23:59"
+    },
+    "tags": [
+      "beach",
+      "surf",
+      "windsurf",
+      "nature",
+      "day-trip"
+    ],
+    "nfcRelevant": false,
+    "sponsored": false
+  }
+]

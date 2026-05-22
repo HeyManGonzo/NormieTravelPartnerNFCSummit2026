@@ -111,6 +111,19 @@ async function main() {
   const pinecone = new Pinecone({ apiKey });
   const index = pinecone.index(indexName);
 
+  // Wipe the default namespace before seeding so removed entries (e.g. the
+  // old generic restaurants/galleries/nightlife sets) don't linger as stale
+  // matches once they're gone from /data/lisbon/.
+  try {
+    await index.deleteAll();
+    console.log('Cleared existing vectors in the default namespace.');
+  } catch (err) {
+    // 404 means the namespace was empty — safe to ignore. Anything else
+    // bubbles up so the operator notices.
+    if (err?.status !== 404) throw err;
+    console.log('Default namespace was empty; nothing to clear.');
+  }
+
   let upserted = 0;
   for (let i = 0; i < entries.length; i += BATCH_SIZE) {
     const batch = entries.slice(i, i + BATCH_SIZE);
