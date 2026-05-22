@@ -2,19 +2,16 @@ import { NextResponse } from 'next/server';
 import { asc, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db.js';
 import { getOrCreateSession } from '@/lib/session.js';
-import { chat } from '@/lib/claude.js';
+import { chatTurnWithTools } from '@/lib/claude.js';
 import { buildSystemPrompt } from '@/lib/prompts/system.js';
-import { searchKnowledgeBase } from '@/lib/retrieval.js';
 import { extractProfile, mergeProfile } from '@/lib/profile-extractor.js';
-import { fetchLisbonForecast, formatForecastBlock } from '@/lib/apis/weather.js';
-import { travelHintsForItinerary, formatTravelHintsBlock } from '@/lib/apis/maps.js';
-import { fetchLisbonEvents, formatEventsBlock } from '@/lib/apis/events.js';
+import { TOOL_DEFINITIONS, executeTool } from '@/lib/tools.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const HISTORY_LIMIT = 20;
-const RETRIEVAL_TOP_K = 6;
+const MAX_TOOL_ITERATIONS = 4;
 
 // GET /api/chat — return conversation history + session state so the
 // frontend can rehydrate after a page reload or returning visit.
@@ -104,51 +101,6 @@ export async function POST(req) {
       content: userMessage,
     });
 
-    // Retrieve candidate venues from the knowledge base based on the
-    // latest user message. We fail soft if retrieval is misconfigured.
-    let candidates = [];
-    try {
-      candidates = await searchKnowledgeBase(userMessage, { topK: RETRIEVAL_TOP_K });
-    } catch (err) {
-      console.warn('[api/chat] retrieval failed (continuing without):', err.message);
-    }
-
-    // External enrichments — all fail soft if the relevant API key is
-    // missing. We only run them when there's a meaningful trip context
-    // to anchor against, to avoid burning quota during onboarding.
-    let weatherBlock = null;
-    let travelHintsBlock = null;
-    let eventsBlock = null;
-    if (tripProfile?.arrivalDate && tripProfile?.departureDate) {
-      try {
-        const forecast = await fetchLisbonForecast();
-        const dateRange = buildDateRange(
-          tripProfile.arrivalDate,
-          tripProfile.departureDate,
-        );
-        weatherBlock = formatForecastBlock(forecast, dateRange);
-      } catch (err) {
-        console.warn('[api/chat] weather failed:', err.message);
-      }
-      try {
-        const events = await fetchLisbonEvents({
-          from: tripProfile.arrivalDate,
-          to: tripProfile.departureDate,
-        });
-        eventsBlock = formatEventsBlock(events);
-      } catch (err) {
-        console.warn('[api/chat] events failed:', err.message);
-      }
-    }
-    if (latestItinerary?.content) {
-      try {
-        const hints = await travelHintsForItinerary(latestItinerary.content);
-        travelHintsBlock = formatTravelHintsBlock(hints);
-      } catch (err) {
-        console.warn('[api/chat] travel hints failed:', err.message);
-      }
-    }
-
     const systemPrompt = buildSystemPrompt({
       session,
       tripProfile,
@@ -164,15 +116,61 @@ export async function POST(req) {
             })),
           }
         : null,
-      candidates,
-      weatherBlock,
-      travelHintsBlock,
-      eventsBlock,
     });
 
+    // Tool-using loop: Claude may call searchKnowledge / getWeather /
+    // getTravelTime up to MAX_TOOL_ITERATIONS times before we force it to
+    // stop. Parallel tool_use blocks in one turn are dispatched concurrently.
     const messagesForClaude = [...history, { role: 'user', content: userMessage }];
+    const toolTrace = [];
+    let replyText = '';
 
-    const { text: replyText } = await chat(messagesForClaude, systemPrompt);
+    for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
+      const { response, stopReason, textBlocks, toolUses } =
+        await chatTurnWithTools(messagesForClaude, systemPrompt, TOOL_DEFINITIONS);
+
+      if (stopReason !== 'tool_use' || toolUses.length === 0) {
+        replyText = textBlocks.join('\n').trim();
+        break;
+      }
+
+      // Persist the assistant turn (containing tool_use blocks) verbatim
+      // so the next turn's history references resolve.
+      messagesForClaude.push({ role: 'assistant', content: response.content });
+
+      const results = await Promise.all(
+        toolUses.map(async (tu) => {
+          const result = await executeTool(tu.name, tu.input);
+          toolTrace.push({ name: tu.name, input: tu.input, ok: !result?.error });
+          return { id: tu.id, result };
+        }),
+      );
+
+      messagesForClaude.push({
+        role: 'user',
+        content: results.map((r) => ({
+          type: 'tool_result',
+          tool_use_id: r.id,
+          content: JSON.stringify(r.result),
+        })),
+      });
+
+      // Final iteration — if Claude still wants tools, fall through and
+      // surface whatever text it produced. Avoids infinite loops.
+      if (iter === MAX_TOOL_ITERATIONS - 1) {
+        const { textBlocks: finalText } = await chatTurnWithTools(
+          messagesForClaude,
+          systemPrompt,
+          TOOL_DEFINITIONS,
+        );
+        replyText = finalText.join('\n').trim();
+        break;
+      }
+    }
+
+    if (!replyText) {
+      replyText = "Sorry — I lost my thread for a moment. Can you ask that again?";
+    }
 
     await db.insert(schema.conversations).values({
       sessionId: session.id,
@@ -238,18 +236,4 @@ export async function POST(req) {
       { status: 500 },
     );
   }
-}
-
-
-// Build an inclusive list of ISO date strings between two ISO dates.
-function buildDateRange(start, end) {
-  if (!start || !end) return [];
-  const out = [];
-  const s = new Date(`${start}T00:00:00Z`);
-  const e = new Date(`${end}T00:00:00Z`);
-  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return [];
-  for (let d = new Date(s); d <= e; d.setUTCDate(d.getUTCDate() + 1)) {
-    out.push(d.toISOString().slice(0, 10));
-  }
-  return out;
 }
