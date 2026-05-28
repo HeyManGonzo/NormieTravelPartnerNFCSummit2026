@@ -107,11 +107,19 @@ export async function POST(req) {
         ? {
             version: latestItinerary.version,
             generatedAt: latestItinerary.generatedAt,
+            // Include full activity names so Gemel references the same venues
+            // in chat as appear in the downloadable/exported itinerary.
             days: latestItinerary.content?.days?.map((d) => ({
               date: d.date,
               dayLabel: d.dayLabel,
               nfcDay: d.nfcDay,
-              activityCount: d.blocks?.length ?? 0,
+              blocks: d.blocks?.map((b) => ({
+                timeSlot: b.timeSlot,
+                name: b.activity?.name,
+                type: b.activity?.type,
+                neighbourhood: b.activity?.neighbourhood,
+                address: b.activity?.address,
+              })),
             })),
           }
         : null,
@@ -140,7 +148,7 @@ export async function POST(req) {
 
       const results = await Promise.all(
         toolUses.map(async (tu) => {
-          const result = await executeTool(tu.name, tu.input);
+          const result = await executeTool(tu.name, tu.input, { sessionId: session.id });
           toolTrace.push({ name: tu.name, input: tu.input, ok: !result?.error });
           return { id: tu.id, result };
         }),
@@ -246,7 +254,11 @@ export async function POST(req) {
           .set({ status: nextStatus, updatedAt: new Date() })
           .where(eq(schema.sessions.id, session.id));
 
-        controller.enqueue(sse({ type: 'done', profileComplete, readyToGenerate, status: nextStatus }));
+        const itineraryUpdated = toolTrace.some(
+          (t) => t.name === 'saveItinerary' && t.ok,
+        );
+
+        controller.enqueue(sse({ type: 'done', profileComplete, readyToGenerate, status: nextStatus, itineraryUpdated }));
         controller.close();
       },
     });

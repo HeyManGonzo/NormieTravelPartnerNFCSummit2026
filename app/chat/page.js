@@ -182,6 +182,14 @@ export default function ChatPage() {
               );
               setStatus(event.status ?? status);
 
+              if (event.itineraryUpdated) {
+                const updated = await fetch('/api/itinerary', { credentials: 'include' }).then((r) => r.json());
+                if (updated?.success && updated.data?.itinerary) {
+                  setItinerary({ ...updated.data.itinerary, version: updated.data.version });
+                  if (updated.data.shareToken) setShareToken(updated.data.shareToken);
+                }
+              }
+
               if (event.readyToGenerate) {
                 setPendingLabel(t.chat.generating);
                 setPending(true);
