@@ -32,14 +32,14 @@ async function loadAllEntries() {
     for (const item of arr) entries.push(item);
   }
 
-  // NFC Summit programme — wrap the event itself as a single retrievable
-  // entry. lib/static-catalog.js builds the same shape at runtime, so the
-  // ids and tags here must stay in sync with programmeEntry() there.
+  // NFC Summit programme — the main event entry plus every side event.
+  // Must stay in sync with static-catalog.js sideEventEntries().
   const programmeRaw = await readFile(
     join(DATA_DIR, 'nfc-summit', 'programme.json'),
     'utf8',
   );
   const programme = JSON.parse(programmeRaw);
+
   entries.push({
     id: programme.event.id,
     type: 'event',
@@ -52,6 +52,38 @@ async function loadAllEntries() {
     tags: ['nfc-summit', 'conference', 'digital-art', 'web3'],
     nfcRelevant: true,
   });
+
+  const TYPE_TAGS = {
+    brunch:           ['brunch', 'food', 'social', 'web3'],
+    party:            ['nightlife', 'social', 'web3'],
+    meetup:           ['networking', 'web3', 'social'],
+    hackathon:        ['tech', 'ai', 'web3', 'creative'],
+    workshop:         ['workshop', 'tech', 'ai', 'web3'],
+    exhibition:       ['art', 'digital-art', 'exhibition'],
+    panel:            ['talks', 'education', 'web3'],
+    keynote:          ['talks', 'education', 'web3'],
+    'conference-day': ['talks', 'education', 'finance', 'web3'],
+    tour:             ['art', 'education', 'guided-tour'],
+  };
+
+  for (const ev of programme.sideEvents ?? []) {
+    const dates = Array.isArray(ev.dates) ? ev.dates.join(' & ') : (ev.dates ?? '');
+    const time = ev.timeStart
+      ? ` at ${ev.timeStart}${ev.timeEnd ? `–${ev.timeEnd}` : ''}`
+      : '';
+    entries.push({
+      id: ev.id,
+      type: 'event',
+      name: ev.name,
+      description: `${dates}${time}. ${ev.description ?? ''}`.trim(),
+      address: ev.address ?? programme.event.address,
+      neighbourhood: programme.event.neighbourhood,
+      coordinates: programme.event.coordinates,
+      priceRange: ev.priceRange ?? 'free',
+      tags: ['nfc-summit', 'side-event', ...(TYPE_TAGS[ev.type] ?? ['web3'])],
+      nfcRelevant: true,
+    });
+  }
 
   return entries;
 }
