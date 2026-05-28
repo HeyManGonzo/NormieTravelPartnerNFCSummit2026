@@ -23,6 +23,7 @@ export default function ChatPage() {
   const [shareToken, setShareToken] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const bootstrapped = useRef(false);
   const lastSpokenIdRef = useRef(null);
 
@@ -114,14 +115,13 @@ export default function ChatPage() {
 
   const handleSend = useCallback(
     async (text) => {
-      const userMsg = {
-        id: `tmp-${Date.now()}`,
-        role: 'user',
-        content: text,
-      };
-      setMessages((m) => [...m, userMsg]);
+      setMessages((m) => [...m, { id: `tmp-${Date.now()}`, role: 'user', content: text }]);
       setPending(true);
       setPendingLabel(t.chat.thinking);
+
+      const replyId = `reply-${Date.now()}`;
+      let streamingStarted = false;
+      let fullReply = '';
 
       try {
         const res = await fetch('/api/chat', {
@@ -130,69 +130,118 @@ export default function ChatPage() {
           credentials: 'include',
           body: JSON.stringify({ message: text }),
         });
-        const json = await res.json();
-        if (!json?.success) throw new Error(json?.error ?? 'chat error');
 
-        setMessages((m) => [
-          ...m,
-          {
-            id: `reply-${Date.now()}`,
-            role: 'assistant',
-            content: json.data.reply,
-          },
-        ]);
-        setStatus(json.data.status ?? status);
+        if (!res.ok || !res.body) throw new Error(`Request failed: ${res.status}`);
 
-        if (json.data.readyToGenerate) {
-          setPendingLabel(t.chat.generating);
-          const gen = await fetch('/api/itinerary', {
-            method: 'POST',
-            credentials: 'include',
-          }).then((r) => r.json());
-          if (gen?.success) {
-            if (gen.data.itinerary) {
-              setItinerary({
-                ...gen.data.itinerary,
-                version: gen.data.version,
-              });
-              if (gen.data.shareToken) setShareToken(gen.data.shareToken);
-              setPanelOpen(true);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // SSE events are separated by \n\n — hold back any incomplete tail.
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() ?? '';
+
+          for (const part of parts) {
+            if (!part.startsWith('data: ')) continue;
+            let event;
+            try { event = JSON.parse(part.slice(6)); } catch { continue; }
+
+            if (event.type === 'token') {
+              fullReply += event.text;
+              if (!streamingStarted) {
+                streamingStarted = true;
+                setPending(false);
+                setPendingLabel(null);
+                setStreaming(true);
+                setMessages((m) => [
+                  ...m,
+                  { id: replyId, role: 'assistant', content: event.text, streaming: true },
+                ]);
+              } else {
+                setMessages((m) =>
+                  m.map((msg) =>
+                    msg.id === replyId
+                      ? { ...msg, content: msg.content + event.text }
+                      : msg,
+                  ),
+                );
+              }
             }
-            if (gen.data.reply) {
+
+            if (event.type === 'done') {
+              setStreaming(false);
+              setMessages((m) =>
+                m.map((msg) =>
+                  msg.id === replyId ? { ...msg, streaming: false } : msg,
+                ),
+              );
+              setStatus(event.status ?? status);
+
+              if (event.readyToGenerate) {
+                setPendingLabel(t.chat.generating);
+                setPending(true);
+                const gen = await fetch('/api/itinerary', {
+                  method: 'POST',
+                  credentials: 'include',
+                }).then((r) => r.json());
+                if (gen?.success) {
+                  if (gen.data.itinerary) {
+                    setItinerary({ ...gen.data.itinerary, version: gen.data.version });
+                    if (gen.data.shareToken) setShareToken(gen.data.shareToken);
+                    setPanelOpen(true);
+                  }
+                  if (gen.data.reply) {
+                    setMessages((m) => [
+                      ...m,
+                      { id: `narration-${Date.now()}`, role: 'assistant', content: gen.data.reply },
+                    ]);
+                  }
+                  setStatus('active');
+                }
+              }
+            }
+
+            if (event.type === 'error') {
               setMessages((m) => [
                 ...m,
-                {
-                  id: `narration-${Date.now()}`,
-                  role: 'assistant',
-                  content: gen.data.reply,
-                },
+                { id: `err-${Date.now()}`, role: 'assistant', content: t.chat.errorGeneric },
               ]);
             }
-            setStatus('active');
           }
+        }
+
+        if (!streamingStarted) {
+          setMessages((m) => [
+            ...m,
+            { id: replyId, role: 'assistant', content: t.chat.errorGeneric },
+          ]);
         }
       } catch (err) {
         setMessages((m) => [
           ...m,
-          {
-            id: `err-${Date.now()}`,
-            role: 'assistant',
-            content: t.chat.errorGeneric,
-          },
+          { id: `err-${Date.now()}`, role: 'assistant', content: t.chat.errorGeneric },
         ]);
       } finally {
         setPending(false);
         setPendingLabel(null);
+        setStreaming(false);
       }
     },
     [status, t.chat.thinking, t.chat.generating, t.chat.errorGeneric],
   );
 
   // Auto-play newly-arrived assistant messages when the speaker is on.
+  // streaming:true guards prevent TTS from firing on partial messages.
   useEffect(() => {
     if (!voiceOn || messages.length === 0) return;
     const last = messages[messages.length - 1];
     if (last.role !== 'assistant') return;
+    if (last.streaming) return;
     if (last.id === lastSpokenIdRef.current) return;
     lastSpokenIdRef.current = last.id;
     playSpeech(last.content).catch((err) => {
@@ -254,6 +303,7 @@ export default function ChatPage() {
           <ChatWindow
             messages={messages}
             pending={pending}
+            streaming={streaming}
             pendingLabel={pendingLabel}
             onSend={handleSend}
             placeholder={t.chat.placeholder}

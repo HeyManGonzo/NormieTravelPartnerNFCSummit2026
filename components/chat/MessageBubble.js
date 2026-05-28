@@ -126,12 +126,15 @@ function renderContent(content) {
   });
 }
 
-export default function MessageBubble({ role, content }) {
+export default function MessageBubble({ role, content, streaming = false }) {
   const isUser = role === 'user';
   const wrapper = isUser ? 'justify-end' : 'justify-start';
   const bubble = isUser
     ? 'bg-[color:var(--color-accent)] text-[color:var(--color-accent-text)] rounded-2xl rounded-br-sm'
     : 'bg-[color:var(--color-surface)] text-[color:var(--color-text)] border border-[color:var(--color-border)] rounded-2xl rounded-bl-sm';
+
+  // Append a blinking cursor while tokens are still arriving.
+  const displayContent = streaming ? content + '▋' : content;
 
   return (
     <div className={`flex w-full items-end gap-2 ${wrapper}`}>
@@ -148,7 +151,7 @@ export default function MessageBubble({ role, content }) {
       <div
         className={`max-w-[82%] space-y-2 px-4 py-3 text-[15px] leading-relaxed sm:max-w-[74%] ${bubble}`}
       >
-        {renderContent(content)}
+        {renderContent(displayContent)}
       </div>
     </div>
   );

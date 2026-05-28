@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { asc, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db.js';
 import { getOrCreateSession } from '@/lib/session.js';
-import { chatTurnWithTools } from '@/lib/claude.js';
+import { chatTurnWithTools, streamFinalTurn } from '@/lib/claude.js';
 import { buildSystemPrompt } from '@/lib/prompts/system.js';
 import { extractProfile, mergeProfile } from '@/lib/profile-extractor.js';
 import { TOOL_DEFINITIONS, executeTool } from '@/lib/tools.js';
@@ -117,24 +117,25 @@ export async function POST(req) {
         : null,
     });
 
-    // Tool-using loop: Claude may call searchKnowledge / getWeather /
-    // getTravelTime up to MAX_TOOL_ITERATIONS times before we force it to
-    // stop. Parallel tool_use blocks in one turn are dispatched concurrently.
+    // Tool loop — non-streaming. Runs until Claude stops requesting tools or
+    // MAX_TOOL_ITERATIONS is reached. When Claude produces final text within
+    // the loop it is stored in preComputedText and word-streamed via SSE.
+    // When the loop exhausts all iterations with pending tool results,
+    // preComputedText stays null and streamFinalTurn handles the last turn
+    // with real token-by-token streaming.
     const messagesForClaude = [...history, { role: 'user', content: userMessage }];
     const toolTrace = [];
-    let replyText = '';
+    let preComputedText = null;
 
     for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
       const { response, stopReason, textBlocks, toolUses } =
         await chatTurnWithTools(messagesForClaude, systemPrompt, TOOL_DEFINITIONS);
 
       if (stopReason !== 'tool_use' || toolUses.length === 0) {
-        replyText = textBlocks.join('\n').trim();
+        preComputedText = textBlocks.join('\n').trim();
         break;
       }
 
-      // Persist the assistant turn (containing tool_use blocks) verbatim
-      // so the next turn's history references resolve.
       messagesForClaude.push({ role: 'assistant', content: response.content });
 
       const results = await Promise.all(
@@ -153,82 +154,104 @@ export async function POST(req) {
           content: JSON.stringify(r.result),
         })),
       });
-
-      // Final iteration — if Claude still wants tools, fall through and
-      // surface whatever text it produced. Avoids infinite loops.
-      if (iter === MAX_TOOL_ITERATIONS - 1) {
-        const { textBlocks: finalText } = await chatTurnWithTools(
-          messagesForClaude,
-          systemPrompt,
-          TOOL_DEFINITIONS,
-        );
-        replyText = finalText.join('\n').trim();
-        break;
-      }
     }
 
-    if (!replyText) {
-      replyText = "Sorry — I lost my thread for a moment. Can you ask that again?";
-    }
+    // Return a Server-Sent Events stream. Keeping the response open while DB
+    // writes and profile extraction run means no waitUntil hack is needed —
+    // the serverless function stays alive until the stream closes.
+    const encoder = new TextEncoder();
+    const sse = (obj) => encoder.encode(`data: ${JSON.stringify(obj)}\n\n`);
 
-    await db.insert(schema.conversations).values({
-      sessionId: session.id,
-      role: 'assistant',
-      content: replyText,
+    const responseStream = new ReadableStream({
+      async start(controller) {
+        controller.enqueue(sse({ type: 'meta', sessionId: session.id, status: session.status }));
+
+        let replyText = '';
+
+        try {
+          if (preComputedText !== null) {
+            // Common path (no tool iterations hit the limit): Claude already
+            // produced the text. Stream it word-by-word so the client renders
+            // progressively even though the text was pre-computed.
+            replyText = preComputedText || "Sorry — I lost my thread for a moment. Can you ask that again?";
+            for (const chunk of replyText.split(/(\s+)/)) {
+              if (chunk) controller.enqueue(sse({ type: 'token', text: chunk }));
+              await Promise.resolve();
+            }
+          } else {
+            // Tool loop ran out of iterations — ask Claude for the final answer
+            // with real streaming so tokens flow directly to the browser.
+            for await (const chunk of streamFinalTurn(messagesForClaude, systemPrompt)) {
+              replyText += chunk;
+              controller.enqueue(sse({ type: 'token', text: chunk }));
+            }
+            if (!replyText) replyText = "Sorry — I lost my thread for a moment. Can you ask that again?";
+          }
+        } catch (err) {
+          console.error('[api/chat stream]', err);
+          controller.enqueue(sse({ type: 'error', message: 'Stream failed. Please try again.' }));
+          controller.close();
+          return;
+        }
+
+        await db.insert(schema.conversations).values({
+          sessionId: session.id,
+          role: 'assistant',
+          content: replyText,
+        });
+
+        // Re-extract the trip profile to capture any new details the visitor
+        // shared. Skip when the session is already active.
+        let profileComplete = false;
+        let readyToGenerate = false;
+
+        if (session.status !== 'active') {
+          try {
+            const updatedHistory = [...history, { role: 'user', content: userMessage }];
+            const extracted = await extractProfile(updatedHistory);
+            if (extracted) {
+              const merged = mergeProfile(tripProfile, extracted);
+              if (tripProfile) {
+                await db
+                  .update(schema.tripProfiles)
+                  .set({ ...merged, updatedAt: new Date() })
+                  .where(eq(schema.tripProfiles.id, tripProfile.id));
+              } else {
+                await db.insert(schema.tripProfiles).values({
+                  sessionId: session.id,
+                  ...merged,
+                });
+              }
+              profileComplete = Boolean(extracted.isComplete);
+              readyToGenerate = profileComplete && Boolean(extracted.userConfirmedItinerary);
+            }
+          } catch (err) {
+            console.warn('[api/chat] profile extraction failed:', err.message);
+          }
+        }
+
+        const nextStatus =
+          session.status === 'active'
+            ? 'active'
+            : profileComplete
+              ? 'planning'
+              : session.status;
+
+        await db
+          .update(schema.sessions)
+          .set({ status: nextStatus, updatedAt: new Date() })
+          .where(eq(schema.sessions.id, session.id));
+
+        controller.enqueue(sse({ type: 'done', profileComplete, readyToGenerate, status: nextStatus }));
+        controller.close();
+      },
     });
 
-    // Re-extract the trip profile to capture any new details the visitor shared.
-    // Skip when the session is already active — the profile is locked in and
-    // itinerary generated; extraction would only add latency with no benefit.
-    let extracted = null;
-    if (session.status !== 'active') {
-      try {
-        const updatedHistory = [...history, { role: 'user', content: userMessage }];
-        extracted = await extractProfile(updatedHistory);
-      } catch (err) {
-        console.warn('[api/chat] profile extraction failed:', err.message);
-      }
-    }
-
-    let profileComplete = false;
-    let readyToGenerate = false;
-    if (extracted) {
-      const merged = mergeProfile(tripProfile, extracted);
-      if (tripProfile) {
-        await db
-          .update(schema.tripProfiles)
-          .set({ ...merged, updatedAt: new Date() })
-          .where(eq(schema.tripProfiles.id, tripProfile.id));
-      } else {
-        await db.insert(schema.tripProfiles).values({
-          sessionId: session.id,
-          ...merged,
-        });
-      }
-      profileComplete = Boolean(extracted.isComplete);
-      readyToGenerate = profileComplete && Boolean(extracted.userConfirmedItinerary);
-    }
-
-    // Advance session status only — never regress it.
-    const nextStatus =
-      session.status === 'active'
-        ? 'active'
-        : profileComplete
-          ? 'planning'
-          : session.status;
-    await db
-      .update(schema.sessions)
-      .set({ status: nextStatus, updatedAt: new Date() })
-      .where(eq(schema.sessions.id, session.id));
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        sessionId: session.id,
-        status: nextStatus,
-        reply: replyText,
-        profileComplete,
-        readyToGenerate,
+    return new Response(responseStream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
       },
     });
   } catch (err) {

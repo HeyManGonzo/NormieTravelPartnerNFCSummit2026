@@ -8,6 +8,7 @@ import InputBar from './InputBar';
 export default function ChatWindow({
   messages = [],
   pending = false,
+  streaming = false,
   pendingLabel,
   onSend,
   placeholder,
@@ -31,9 +32,9 @@ export default function ChatWindow({
       >
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
           {messages.map((m) => (
-            <MessageBubble key={m.id} role={m.role} content={m.content} />
+            <MessageBubble key={m.id} role={m.role} content={m.content} streaming={m.streaming ?? false} />
           ))}
-          {pending && <TypingIndicator label={pendingLabel} />}
+          {pending && !streaming && <TypingIndicator label={pendingLabel} />}
         </div>
       </div>
 
@@ -41,7 +42,7 @@ export default function ChatWindow({
         <div className="mx-auto w-full max-w-2xl">
           <InputBar
             onSend={onSend}
-            disabled={pending}
+            disabled={pending || streaming}
             placeholder={placeholder}
             sendLabel={sendLabel}
             micSlot={micSlot}
