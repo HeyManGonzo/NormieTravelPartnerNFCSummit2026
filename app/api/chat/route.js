@@ -223,7 +223,11 @@ export async function POST(req) {
                 });
               }
               profileComplete = Boolean(extracted.isComplete);
-              readyToGenerate = profileComplete && Boolean(extracted.userConfirmedItinerary);
+              // Trigger itinerary generation as soon as the profile is complete.
+              // session.status !== 'active' gates re-triggering: the itinerary
+              // route sets the session to 'active' on success, so this only
+              // fires once per session.
+              readyToGenerate = profileComplete && session.status !== 'active';
             }
           } catch (err) {
             console.warn('[api/chat] profile extraction failed:', err.message);
