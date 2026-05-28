@@ -187,4 +187,121 @@ These are not platform features — they are polish on the current Gemel deploym
 
 ---
 
+## Event Configuration Checklist
+
+Every time Gemel is deployed for a new event, the following must be done **in order**. Skipping any step will cause Gemel to give wrong information — wrong venue, wrong days, wrong schedule.
+
+This checklist applies now (NFC Summit 2026) and to every future event deployment until the platform has a proper self-serve onboarding UI.
+
+---
+
+### Step 1 — Update the system prompt (`lib/prompts/system.js`)
+
+**Why:** The system prompt has hardcoded facts about the event that the LLM reads directly. If these are wrong or missing, Gemel fabricates answers from training data (e.g. getting the day of the week wrong).
+
+**What to update:**
+
+1. **`AGENT_IDENTITY`** — change the event name, venue name, neighbourhood, and date range in the opening paragraph.
+
+2. **`NFC_CALENDAR` (or equivalent block)** — replace with the new event's date-to-day-of-week mapping. **This is critical.** LLMs cannot reliably compute day-of-week for future dates. The calendar block must be explicit:
+   ```
+   Tuesday   2 October 2026  — day before event (common arrival)
+   Wednesday 3 October 2026  — Event Day 1
+   Thursday  4 October 2026  — Event Day 2
+   ...
+   ```
+   Always verify the day-of-week independently (use a calendar tool, not Claude) before writing this block.
+
+3. **`ONBOARDING_FLOW`** — update the list of event days visitors can attend (e.g. "subset of 4, 5, 6 June 2026" becomes the new event dates).
+
+4. **`ITINERARY_RULES`** — update any references to specific neighbourhoods, the Summit venue, or summit-specific activities.
+
+---
+
+### Step 2 — Update the programme file (`data/nfc-summit/programme.json`)
+
+**Why:** This is Gemel's ground-truth source for the event schedule and side events. The itinerary builder, knowledge base, and retrieval system all read from it.
+
+**What to update:**
+
+1. **`event` object** — new event name, venue name, correct address (verify on Google Maps — don't copy from a previous event), neighbourhood, GPS coordinates, start/end dates, and URL.
+
+2. **`days` array** — one entry per event day with date, `dayOfWeek` label, themes, and door times.
+
+3. **`sideEvents` array** — scrape the event's Luma calendar and any other event listing pages. For each side event capture: id, name, dates, timeStart/timeEnd, venue, address, organiser, type, description, lumaUrl. Tips:
+   - Luma calendar pages only show ~20 events via WebFetch (JavaScript rendering). You need the direct Luma URLs for events beyond that — ask the organiser.
+   - Fetch each event's individual page for exact date/time (the calendar page doesn't show them reliably).
+   - Events with unknown dates: add them with a `note` field and the best estimate; update when confirmed.
+
+---
+
+### Step 3 — Update the city knowledge base (`data/[city]/`)
+
+**Why:** The Lisbon venue files are Lisbon-specific. A new city needs its own curated files.
+
+**What to do:**
+
+1. Create `data/[city]/` with the same file structure: `restaurants.json`, `galleries.json`, `landmarks.json`, `nightlife.json`, `neighbourhoods.json`, `day-trips.json`.
+2. Each entry must follow the standard shape (id, type, name, description, address, neighbourhood, coordinates, priceRange, openingHours, tags, nfcRelevant).
+3. Update `lib/static-catalog.js` imports to point to the new city files.
+4. For the first deployment in a new city, start with ~10–15 entries per category. Quality matters more than quantity — every entry Gemel cites reflects on the product.
+
+---
+
+### Step 4 — Regenerate embeddings
+
+**Why:** The knowledge base uses pre-computed vector embeddings stored in `data/embeddings.json`. Any change to the data files — adding venues, updating descriptions, changing tags — makes the embeddings stale.
+
+**Command:**
+```bash
+npm run seed:kb
+```
+
+This calls `scripts/seed-knowledge-base.js`, which reads all data files, calls the Voyage AI API to generate embeddings, and writes `data/embeddings.json`.
+
+**Rules:**
+- Run this **after every data change**, no exceptions.
+- The output shows how many entries were embedded — verify the count looks right.
+- Commit `data/embeddings.json` to the repo alongside the data changes. They must stay in sync.
+- `VOYAGE_API_KEY` must be set in `.env.local`.
+
+---
+
+### Step 5 — Update environment variables (Vercel)
+
+**Why:** The deployed function reads secrets from Vercel environment variables. A new event may use a different API key, domain, or model.
+
+**What to check:**
+- `NEXT_PUBLIC_APP_URL` — update to the new deployment URL or custom domain.
+- `SESSION_SECRET` — rotate for each new event deployment.
+- Any new API keys specific to the event organiser (e.g. a different ElevenLabs voice).
+
+---
+
+### Step 6 — Smoke-test before go-live
+
+Run through the full visitor flow end-to-end before the event opens:
+
+1. Open the app as a new visitor (incognito window).
+2. Complete the onboarding — confirm the event dates and day names are correct.
+3. Confirm the itinerary is generated and the panel opens.
+4. Ask Gemel "what's happening on [Day 1 date]?" — verify she names the correct day of the week.
+5. Ask about a specific side event — verify she has the correct time and venue.
+6. Export the itinerary as PDF, ICS, and Markdown — verify all three download correctly.
+7. Test voice input and output if ElevenLabs is configured.
+
+---
+
+### Lessons from NFC Summit 2026 (avoid repeating these)
+
+| Issue | Root cause | Fix |
+|-------|-----------|-----|
+| Gemel named wrong day of week (e.g. "June 3 is a Tuesday") | LLM computing dates from training data | Always inject explicit `NFC_CALENDAR` block — never trust the model to compute day-of-week |
+| Venue listed as Alcântara instead of Beato | Incorrect address in `programme.json` and system prompt | Verify venue address on Google Maps independently; don't copy from memory or prior docs |
+| Side events missing (Normies Brunch, 10 others) | Luma calendar page only renders ~20 events via static fetch | Obtain direct Luma URLs from the organiser for all events; individual event pages have accurate dates/times |
+| Itinerary panel never appeared | `readyToGenerate` required explicit user confirmation phrase Gemel wasn't triggering | Changed trigger to fire automatically when profile is complete and session is not yet active |
+| TTS spelling out URLs and hash fragments | Raw markdown sent to ElevenLabs | Always run text through `cleanTextForSpeech()` before TTS |
+
+---
+
 _End of post-summit roadmap._
