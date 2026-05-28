@@ -5,6 +5,9 @@ export const metadata = {
   title: 'Gemel — NFC Summit 2026 Visitor Concierge',
   description:
     'A conversational concierge for visitors of NFC Summit 2026 in Lisbon, planned by Gemel — Normie #6832.',
+  icons: {
+    icon: '/gemel.svg',
+  },
 };
 
 export default function RootLayout({ children }) {
