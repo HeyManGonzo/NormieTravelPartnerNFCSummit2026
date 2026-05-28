@@ -61,34 +61,33 @@ export async function POST(req) {
 
     const { session } = await getOrCreateSession();
 
-    // Trip profile, if collected.
-    const [tripProfile] = await db
-      .select()
-      .from(schema.tripProfiles)
-      .where(eq(schema.tripProfiles.sessionId, session.id))
-      .limit(1);
+    // Fetch trip profile, itinerary summary, and conversation history in parallel.
+    const [
+      [tripProfile],
+      [latestItinerary],
+      recent,
+    ] = await Promise.all([
+      db.select()
+        .from(schema.tripProfiles)
+        .where(eq(schema.tripProfiles.sessionId, session.id))
+        .limit(1),
+      db.select({
+          id: schema.itineraries.id,
+          version: schema.itineraries.version,
+          generatedAt: schema.itineraries.updatedAt,
+          content: schema.itineraries.content,
+        })
+        .from(schema.itineraries)
+        .where(eq(schema.itineraries.sessionId, session.id))
+        .orderBy(desc(schema.itineraries.version))
+        .limit(1),
+      db.select()
+        .from(schema.conversations)
+        .where(eq(schema.conversations.sessionId, session.id))
+        .orderBy(desc(schema.conversations.createdAt))
+        .limit(HISTORY_LIMIT),
+    ]);
 
-    // Latest itinerary summary (id, version, timestamps) — full content omitted
-    // from the prompt to keep token use sane.
-    const [latestItinerary] = await db
-      .select({
-        id: schema.itineraries.id,
-        version: schema.itineraries.version,
-        generatedAt: schema.itineraries.updatedAt,
-        content: schema.itineraries.content,
-      })
-      .from(schema.itineraries)
-      .where(eq(schema.itineraries.sessionId, session.id))
-      .orderBy(desc(schema.itineraries.version))
-      .limit(1);
-
-    // Last N conversation turns (oldest → newest).
-    const recent = await db
-      .select()
-      .from(schema.conversations)
-      .where(eq(schema.conversations.sessionId, session.id))
-      .orderBy(desc(schema.conversations.createdAt))
-      .limit(HISTORY_LIMIT);
     const history = recent.reverse().map((m) => ({
       role: m.role,
       content: m.content,
@@ -178,14 +177,17 @@ export async function POST(req) {
       content: replyText,
     });
 
-    // Re-extract the trip profile from the updated transcript so we capture
-    // any new details the visitor just shared. Failures are non-fatal.
+    // Re-extract the trip profile to capture any new details the visitor shared.
+    // Skip when the session is already active — the profile is locked in and
+    // itinerary generated; extraction would only add latency with no benefit.
     let extracted = null;
-    try {
-      const updatedHistory = [...history, { role: 'user', content: userMessage }];
-      extracted = await extractProfile(updatedHistory);
-    } catch (err) {
-      console.warn('[api/chat] profile extraction failed:', err.message);
+    if (session.status !== 'active') {
+      try {
+        const updatedHistory = [...history, { role: 'user', content: userMessage }];
+        extracted = await extractProfile(updatedHistory);
+      } catch (err) {
+        console.warn('[api/chat] profile extraction failed:', err.message);
+      }
     }
 
     let profileComplete = false;
