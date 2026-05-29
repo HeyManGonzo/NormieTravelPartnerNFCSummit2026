@@ -50,12 +50,19 @@ export default function ConversationButton({ onMessage, onStatusChange, language
       console.log('[CB] got signed URL, sessionId =', data.sessionId);
 
       console.log('[CB] calling Conversation.startSession...');
-      const conversation = await Conversation.startSession({
+      // Build options progressively. Only include `overrides` when we actually
+      // need to change something — sending overrides for the default values
+      // can trigger validation rejections from ElevenLabs.
+      const sessionOpts = {
         signedUrl: data.signedUrl,
+        connectionType: 'websocket',
         customLlmExtraBody: { session_id: data.sessionId },
-        overrides: {
-          agent: { language },
-        },
+      };
+      if (language && language !== 'en') {
+        sessionOpts.overrides = { agent: { language } };
+      }
+      const conversation = await Conversation.startSession({
+        ...sessionOpts,
         onConnect: () => {
           console.log('[CB] onConnect fired');
           updateStatus(STATUS.listening);
