@@ -6,13 +6,8 @@ import { ListTodo } from 'lucide-react';
 import ChatWindow from '@/components/chat/ChatWindow';
 import ItineraryView from '@/components/itinerary/ItineraryView';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
-import SpeakerToggle from '@/components/chat/SpeakerToggle';
-import MicButton from '@/components/chat/MicButton';
 import ConversationButton from '@/components/chat/ConversationButton';
-import { playSpeech, stopSpeech } from '@/lib/voice/client';
 import { getMessages } from '@/lib/i18n';
-
-const VOICE_PREF_KEY = 'gemel-voice-on';
 
 export default function ChatPage() {
   const [locale, setLocale] = useState('en');
@@ -23,33 +18,10 @@ export default function ChatPage() {
   const [itinerary, setItinerary] = useState(null);
   const [shareToken, setShareToken] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [voiceOn, setVoiceOn] = useState(false);
   const [streaming, setStreaming] = useState(false);
-  const [conversationActive, setConversationActive] = useState(false);
   const bootstrapped = useRef(false);
-  const lastSpokenIdRef = useRef(null);
 
   const t = getMessages(locale);
-
-  // Restore the user's last speaker preference.
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(VOICE_PREF_KEY);
-      if (stored === '1') setVoiceOn(true);
-    } catch {}
-  }, []);
-
-  function handleVoiceChange(next) {
-    setVoiceOn(next);
-    try {
-      localStorage.setItem(VOICE_PREF_KEY, next ? '1' : '0');
-    } catch {}
-  }
-
-  function handleTranscript(text) {
-    if (!text) return;
-    handleSend(text);
-  }
 
   const fetchItinerary = useCallback(async () => {
     try {
@@ -96,15 +68,8 @@ export default function ChatPage() {
             setMessages([
               { id: 'greeting', role: 'assistant', content: greeting },
             ]);
-            lastSpokenIdRef.current = 'greeting';
           } else {
             setMessages(rows);
-            // Treat historical assistant messages as already-spoken so we
-            // don't replay them when the user enables voice mid-session.
-            const lastAssistant = [...rows]
-              .reverse()
-              .find((m) => m.role === 'assistant');
-            lastSpokenIdRef.current = lastAssistant?.id ?? null;
           }
         }
 
@@ -245,43 +210,15 @@ export default function ChatPage() {
     [status, t.chat.thinking, t.chat.generating, t.chat.errorGeneric],
   );
 
-  // Auto-play newly-arrived assistant messages when the speaker is on.
-  // streaming:true guards prevent TTS from firing on partial messages.
-  useEffect(() => {
-    if (!voiceOn || messages.length === 0) return;
-    const last = messages[messages.length - 1];
-    if (last.role !== 'assistant') return;
-    if (last.streaming) return;
-    if (last.id === lastSpokenIdRef.current) return;
-    lastSpokenIdRef.current = last.id;
-    playSpeech(last.content).catch((err) => {
-      console.warn('voice playback failed', err);
-    });
-  }, [messages, voiceOn]);
-
-  // Stop any in-flight speech if the user leaves the page.
-  useEffect(() => stopSpeech, []);
-
-  function handleMicError(message) {
-    setMessages((m) => [
-      ...m,
-      { id: `mic-err-${Date.now()}`, role: 'assistant', content: message },
-    ]);
-  }
-
-  // Voice conversation transcript — each turn arrives here and is added to the
-  // chat history so the visitor can read what was said. TTS is handled by
-  // ElevenLabs directly; we suppress the speaker-on effect for these messages.
+  // Voice conversation transcript — each turn from the ElevenLabs WebSocket
+  // gets added to the chat history so the visitor can read what was said.
+  // ElevenLabs handles audio out directly, no client-side TTS needed.
   const handleConversationMessage = useCallback(({ role, content }) => {
     if (!content?.trim()) return;
     const id = `conv-${role}-${Date.now()}`;
     setMessages((m) => [...m, { id, role, content }]);
-    if (role === 'assistant') lastSpokenIdRef.current = id;
   }, []);
 
-  const handleConversationStatus = useCallback((status) => {
-    setConversationActive(status !== 'idle' && status !== 'error');
-  }, []);
 
   return (
     <main className="flex h-[100dvh] flex-col bg-[color:var(--color-bg)]">
@@ -315,13 +252,7 @@ export default function ChatPage() {
           )}
           <ConversationButton
             onMessage={handleConversationMessage}
-            onStatusChange={handleConversationStatus}
             language={locale}
-          />
-          <SpeakerToggle
-            enabled={voiceOn}
-            onChange={handleVoiceChange}
-            label={voiceOn ? t.voice.speakerOn : t.voice.speakerOff}
           />
           <LanguageSwitcher value={locale} onChange={setLocale} />
         </div>
@@ -337,20 +268,6 @@ export default function ChatPage() {
             onSend={handleSend}
             placeholder={t.chat.placeholder}
             sendLabel={t.chat.send}
-            micSlot={
-              <MicButton
-                disabled={pending}
-                languageCode={locale}
-                onTranscript={handleTranscript}
-                onError={handleMicError}
-                labels={{
-                  start: t.voice.micStart,
-                  stop: t.voice.micStop,
-                  transcribing: t.voice.micTranscribing,
-                  empty: t.voice.micEmpty,
-                }}
-              />
-            }
           />
         </div>
 
