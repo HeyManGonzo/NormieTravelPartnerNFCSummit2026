@@ -48,10 +48,17 @@ ElevenLabs TTS → audio back to your speaker
 
 ### LLM
 - Set **LLM** to **Custom LLM**
-- **URL:** `https://normieagent.com/api/voice/conversation-llm`
-  - For local testing: use a tunnel (e.g. `ngrok http 3000`) and use that URL
-- **HTTP Method:** POST
-- **Authentication:** None (our endpoint validates via session ID in the request body)
+- **Server URL** (base only — ElevenLabs automatically appends `/chat/completions`):
+  ```
+  https://normieagent.com/api/voice/conversation-llm
+  ```
+  Resulting URL ElevenLabs calls: `https://normieagent.com/api/voice/conversation-llm/chat/completions` ← this matches the route file at `app/api/voice/conversation-llm/chat/completions/route.js`
+- For preview/local testing: use the Vercel preview URL or an ngrok tunnel as the base — the `/api/voice/conversation-llm` path stays the same.
+- **Model ID:** `claude-sonnet-4-5` (cosmetic — our webhook ignores it and uses the model configured in `ANTHROPIC_MODEL`, but the field requires a value)
+- **API Key:** leave blank or use any placeholder — our endpoint validates via the session ID embedded in the signed URL, not an API key
+- **Temperature:** middle of the slider (~0.6) — matches our regular chat default and keeps Gemel's voice natural
+- **Reasoning Effort:** Default (Claude Sonnet 4.5 doesn't use this field)
+- **Backup LLM configuration:** Default (ElevenLabs falls back automatically if our endpoint times out)
 
 ### System Prompt (on the ElevenLabs side)
 Set a minimal placeholder — our webhook replaces this with the full dynamically-built Gemel system prompt on every turn:

@@ -33,7 +33,10 @@ const VOICE_HISTORY_LIMIT = 10;
 export async function POST(req) {
   try {
     const body = await req.json().catch(() => ({}));
-    const sessionId = body?.custom_llm_extra_body?.session_id;
+    // ElevenLabs docs name this field `elevenlabs_extra_body` but the SDK
+    // ships `custom_llm_extra_body` — accept either to survive any rename.
+    const extraBody = body?.elevenlabs_extra_body ?? body?.custom_llm_extra_body ?? {};
+    const sessionId = extraBody.session_id;
     const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
 
     if (!sessionId) {
