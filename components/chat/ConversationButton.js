@@ -67,8 +67,11 @@ export default function ConversationButton({ onMessage, onStatusChange, language
           console.log('[CB] onConnect fired');
           updateStatus(STATUS.listening);
         },
-        onDisconnect: () => {
-          console.log('[CB] onDisconnect fired');
+        onDisconnect: (details) => {
+          // The SDK passes disconnectionDetails containing reason + closeReason
+          // when the server closes the WebSocket. This is the smoking gun for
+          // why ElevenLabs aborts immediately after onConnect.
+          console.log('[CB] onDisconnect fired. Details:', details);
           updateStatus(STATUS.idle);
         },
         onError: (err) => {
@@ -85,6 +88,9 @@ export default function ConversationButton({ onMessage, onStatusChange, language
         },
         onStatusChange: ({ status }) => {
           console.log('[CB] onStatusChange (SDK):', status);
+        },
+        onDebug: (info) => {
+          console.log('[CB] onDebug:', info);
         },
       });
       console.log('[CB] Conversation.startSession resolved', conversation);
