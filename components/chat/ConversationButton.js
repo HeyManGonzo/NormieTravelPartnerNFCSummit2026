@@ -40,43 +40,51 @@ export default function ConversationButton({ onMessage, onStatusChange, language
   }, [onStatusChange]);
 
   const startConversation = useCallback(async () => {
+    console.log('[CB] startConversation called');
     updateStatus(STATUS.connecting);
     try {
-      // Request a signed URL from our server. The server embeds the session
-      // ID so the LLM webhook can load the visitor's profile and itinerary.
+      console.log('[CB] fetching signed URL...');
       const tokenRes = await fetch('/api/voice/conversation-token', { credentials: 'include' });
       if (!tokenRes.ok) throw new Error('Could not get conversation token');
       const { data } = await tokenRes.json();
+      console.log('[CB] got signed URL, sessionId =', data.sessionId);
 
+      console.log('[CB] calling Conversation.startSession...');
       const conversation = await Conversation.startSession({
         signedUrl: data.signedUrl,
-        // Pass session ID through to the custom LLM webhook.
         customLlmExtraBody: { session_id: data.sessionId },
-        // Override the agent language to match the visitor's chosen locale.
         overrides: {
           agent: { language },
         },
-        onConnect: () => updateStatus(STATUS.listening),
-        onDisconnect: () => updateStatus(STATUS.idle),
+        onConnect: () => {
+          console.log('[CB] onConnect fired');
+          updateStatus(STATUS.listening);
+        },
+        onDisconnect: () => {
+          console.log('[CB] onDisconnect fired');
+          updateStatus(STATUS.idle);
+        },
         onError: (err) => {
-          console.error('[ConversationButton] error:', err);
+          console.error('[CB] onError:', err);
           updateStatus(STATUS.error);
         },
         onModeChange: ({ mode }) => {
-          // ElevenLabs reports 'speaking' when Gemel is talking, 'listening'
-          // when it is waiting for the visitor's input.
+          console.log('[CB] onModeChange:', mode);
           updateStatus(mode === 'speaking' ? STATUS.speaking : STATUS.listening);
         },
         onMessage: ({ message, source }) => {
-          // Forward transcript turns to the parent so they can appear in the
-          // chat history panel alongside text messages.
+          console.log('[CB] onMessage:', source, message?.slice?.(0, 60));
           onMessage?.({ role: source === 'ai' ? 'assistant' : 'user', content: message });
         },
+        onStatusChange: ({ status }) => {
+          console.log('[CB] onStatusChange (SDK):', status);
+        },
       });
+      console.log('[CB] Conversation.startSession resolved', conversation);
 
       conversationRef.current = conversation;
     } catch (err) {
-      console.error('[ConversationButton] failed to start:', err);
+      console.error('[CB] failed to start:', err);
       updateStatus(STATUS.error);
     }
   }, [language, onMessage, updateStatus]);
