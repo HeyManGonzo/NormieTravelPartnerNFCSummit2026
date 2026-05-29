@@ -40,19 +40,19 @@ export default function ConversationButton({ onMessage, onStatusChange, language
   }, [onStatusChange]);
 
   const startConversation = useCallback(async () => {
-    console.log('[CB] startConversation called');
     updateStatus(STATUS.connecting);
     try {
-      console.log('[CB] fetching signed URL...');
+      // Get a signed WebSocket URL from our server. The server embeds the
+      // session ID so the LLM webhook can resolve the visitor's profile.
       const tokenRes = await fetch('/api/voice/conversation-token', { credentials: 'include' });
       if (!tokenRes.ok) throw new Error('Could not get conversation token');
       const { data } = await tokenRes.json();
-      console.log('[CB] got signed URL, sessionId =', data.sessionId);
 
-      console.log('[CB] calling Conversation.startSession...');
-      // Build options progressively. Only include `overrides` when we actually
-      // need to change something — sending overrides for the default values
-      // can trigger validation rejections from ElevenLabs.
+      // Only include `overrides` when we actually need to change something —
+      // sending no-op overrides triggers strict ElevenLabs validation rejections.
+      // Both the override fields AND custom_llm_extra_body must be explicitly
+      // enabled on the agent at Settings > Security > Overrides, and the agent
+      // must be Published (not Draft) for changes to take effect.
       const sessionOpts = {
         signedUrl: data.signedUrl,
         connectionType: 'websocket',
@@ -61,43 +61,26 @@ export default function ConversationButton({ onMessage, onStatusChange, language
       if (language && language !== 'en') {
         sessionOpts.overrides = { agent: { language } };
       }
+
       const conversation = await Conversation.startSession({
         ...sessionOpts,
-        onConnect: () => {
-          console.log('[CB] onConnect fired');
-          updateStatus(STATUS.listening);
-        },
-        onDisconnect: (details) => {
-          // The SDK passes disconnectionDetails containing reason + closeReason
-          // when the server closes the WebSocket. This is the smoking gun for
-          // why ElevenLabs aborts immediately after onConnect.
-          console.log('[CB] onDisconnect fired. Details:', details);
-          updateStatus(STATUS.idle);
-        },
+        onConnect: () => updateStatus(STATUS.listening),
+        onDisconnect: () => updateStatus(STATUS.idle),
         onError: (err) => {
-          console.error('[CB] onError:', err);
+          console.error('[ConversationButton] error:', err);
           updateStatus(STATUS.error);
         },
         onModeChange: ({ mode }) => {
-          console.log('[CB] onModeChange:', mode);
           updateStatus(mode === 'speaking' ? STATUS.speaking : STATUS.listening);
         },
         onMessage: ({ message, source }) => {
-          console.log('[CB] onMessage:', source, message?.slice?.(0, 60));
           onMessage?.({ role: source === 'ai' ? 'assistant' : 'user', content: message });
         },
-        onStatusChange: ({ status }) => {
-          console.log('[CB] onStatusChange (SDK):', status);
-        },
-        onDebug: (info) => {
-          console.log('[CB] onDebug:', info);
-        },
       });
-      console.log('[CB] Conversation.startSession resolved', conversation);
 
       conversationRef.current = conversation;
     } catch (err) {
-      console.error('[CB] failed to start:', err);
+      console.error('[ConversationButton] failed to start:', err);
       updateStatus(STATUS.error);
     }
   }, [language, onMessage, updateStatus]);

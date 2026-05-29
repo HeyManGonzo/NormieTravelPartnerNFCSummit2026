@@ -78,6 +78,21 @@ Hi — I'm Gemel. Tell me about your trip to Lisbon and I'll help you plan it.
 - **VAD sensitivity:** Medium
 - Keep other settings at defaults
 
+### Security / Overrides (CRITICAL — this is the easy-to-miss step)
+
+Go to **Settings** (left sidebar of the agent config) → scroll down to the **Overrides** section. By default ElevenLabs blocks all client-side overrides. You must explicitly enable the ones we need:
+
+- ✅ **System prompt** — so our `buildSystemPrompt()` output (full Gemel persona + trip profile + itinerary) is used instead of the ElevenLabs-side placeholder
+- ✅ **LLM** — already on if you set Custom LLM above; confirm it's enabled
+- ✅ **Agent language** — so we can override per visitor locale (PT, ES, FR, DE)
+- ✅ **Custom LLM extra body** — **the one easy to miss.** Without this, ElevenLabs closes the WebSocket with close code 1008 ("Custom LLM extra body override is not allowed for this AI agent") immediately after onConnect fires. Our client passes `session_id` via this field — there is no fallback.
+
+Leave **First message**, **Voice**, **Voice speed/stability/similarity** OFF. We don't override those.
+
+### Publish (don't skip!)
+
+After changing any agent settings — including the Security toggles — the badge in the top right shows **"Draft"** until you click **Publish**. Override toggle changes do nothing in production until published. Publish after every config change.
+
 ---
 
 ## Step 3 — Copy the Agent ID
@@ -117,10 +132,13 @@ ELEVENLABS_AGENT_ID=YOUR_AGENT_ID
 
 | Problem | Likely cause | Fix |
 |---------|-------------|-----|
-| Button shows but clicking gives "Error" | `ELEVENLABS_AGENT_ID` not set | Add env var and redeploy |
-| Connects but Gemel doesn't respond | Webhook URL wrong in agent config | Verify the URL points to `normieagent.com/api/voice/conversation-llm` |
-| Gemel responds but ignores session context | `session_id` not passed correctly | Check browser console for errors in `/api/voice/conversation-token` |
-| VAD triggers too early (cuts you off) | VAD sensitivity too high | Lower sensitivity in Agent settings |
+| Network 503 from `/api/voice/conversation-token` | `ELEVENLABS_AGENT_ID` not set on Vercel | Add env var to Vercel (all environments) and redeploy |
+| Network 502, body says `"missing the permission convai_write"` | API key lacks Conversational AI write scope | ElevenLabs → Settings → API Keys → edit the key → enable **ElevenAgents: Write** under Endpoints |
+| WebSocket connects (101) then disconnects with `closeCode: 1008`, reason includes "Custom LLM extra body override is not allowed" | The agent's Security overrides don't have **Custom LLM extra body** enabled, OR the change wasn't published | ElevenLabs agent → Settings → Overrides → enable Custom LLM extra body → **Publish** (top right) |
+| Test Connection in agent dashboard fails with HTML 401 page | Vercel preview deployment protection blocking ElevenLabs | Add Vercel Protection Bypass token as `x-vercel-protection-bypass` request header in agent LLM config |
+| Connects but Gemel doesn't respond | Webhook URL wrong in agent config | Verify the URL ends with `/api/voice/conversation-llm` — NOT `/chat/completions` (ElevenLabs appends that automatically) |
+| Gemel responds but ignores trip profile / itinerary | `session_id` not flowing to webhook | Check Network → conversation WebSocket → Messages tab: the first browser-sent event should include `custom_llm_extra_body.session_id` |
+| VAD triggers too early (cuts you off) | VAD sensitivity too high | Lower sensitivity in agent Advanced Settings |
 | High latency | LLM webhook URL slow to respond | Check Vercel function logs; consider regional deployment |
 
 ---
