@@ -8,6 +8,7 @@ import ItineraryView from '@/components/itinerary/ItineraryView';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 import SpeakerToggle from '@/components/chat/SpeakerToggle';
 import MicButton from '@/components/chat/MicButton';
+import ConversationButton from '@/components/chat/ConversationButton';
 import { playSpeech, stopSpeech } from '@/lib/voice/client';
 import { getMessages } from '@/lib/i18n';
 
@@ -24,6 +25,7 @@ export default function ChatPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [voiceOn, setVoiceOn] = useState(false);
   const [streaming, setStreaming] = useState(false);
+  const [conversationActive, setConversationActive] = useState(false);
   const bootstrapped = useRef(false);
   const lastSpokenIdRef = useRef(null);
 
@@ -267,6 +269,20 @@ export default function ChatPage() {
     ]);
   }
 
+  // Voice conversation transcript — each turn arrives here and is added to the
+  // chat history so the visitor can read what was said. TTS is handled by
+  // ElevenLabs directly; we suppress the speaker-on effect for these messages.
+  const handleConversationMessage = useCallback(({ role, content }) => {
+    if (!content?.trim()) return;
+    const id = `conv-${role}-${Date.now()}`;
+    setMessages((m) => [...m, { id, role, content }]);
+    if (role === 'assistant') lastSpokenIdRef.current = id;
+  }, []);
+
+  const handleConversationStatus = useCallback((status) => {
+    setConversationActive(status !== 'idle' && status !== 'error');
+  }, []);
+
   return (
     <main className="flex h-[100dvh] flex-col bg-[color:var(--color-bg)]">
       <header className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-3 sm:px-6">
@@ -297,6 +313,11 @@ export default function ChatPage() {
               <span className="hidden sm:inline">{t.itinerary.open}</span>
             </button>
           )}
+          <ConversationButton
+            onMessage={handleConversationMessage}
+            onStatusChange={handleConversationStatus}
+            language={locale}
+          />
           <SpeakerToggle
             enabled={voiceOn}
             onChange={handleVoiceChange}
