@@ -39,9 +39,18 @@ export async function POST(req) {
     const sessionId = extraBody.session_id;
     const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
 
+    // When session_id is missing (e.g. ElevenLabs "Test Connection" probe), we
+    // still need to return a valid OpenAI SSE stream so the test passes. The
+    // probe doesn't include extra_body, so this branch only triggers for tests
+    // or misconfigured clients.
     if (!sessionId) {
-      return new Response('data: {"error":"missing session_id"}\n\ndata: [DONE]\n\n', {
-        headers: { 'Content-Type': 'text/event-stream' },
+      const probe = [
+        `data: ${JSON.stringify({ choices: [{ delta: { role: 'assistant' }, index: 0 }] })}\n\n`,
+        `data: ${JSON.stringify({ choices: [{ delta: { content: 'Custom LLM webhook reachable. Provide session_id in extra_body for real conversations.' }, index: 0 }] })}\n\n`,
+        'data: [DONE]\n\n',
+      ].join('');
+      return new Response(probe, {
+        headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
       });
     }
 
@@ -53,8 +62,12 @@ export async function POST(req) {
       .limit(1);
 
     if (!session) {
-      return new Response('data: {"error":"session not found"}\n\ndata: [DONE]\n\n', {
-        headers: { 'Content-Type': 'text/event-stream' },
+      const notFound = [
+        `data: ${JSON.stringify({ choices: [{ delta: { content: 'Sorry, I could not find your session. Please refresh the page and try again.' }, index: 0 }] })}\n\n`,
+        'data: [DONE]\n\n',
+      ].join('');
+      return new Response(notFound, {
+        headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
       });
     }
 
