@@ -33,8 +33,15 @@ export async function GET() {
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       console.error('[conversation-token] ElevenLabs error:', res.status, body);
+      // Surface the upstream status + body to the browser so it appears in
+      // DevTools Network. Cap body to avoid leaking large HTML responses.
       return NextResponse.json(
-        { success: false, error: 'Failed to get signed URL from ElevenLabs' },
+        {
+          success: false,
+          error: 'Failed to get signed URL from ElevenLabs',
+          upstreamStatus: res.status,
+          upstreamBody: body.slice(0, 500),
+        },
         { status: 502 },
       );
     }
