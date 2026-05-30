@@ -62,6 +62,8 @@ async function loadAllEntries() {
     exhibition:       ['art', 'digital-art', 'exhibition'],
     panel:            ['talks', 'education', 'web3'],
     keynote:          ['talks', 'education', 'web3'],
+    talk:             ['talks', 'education', 'web3'],
+    break:            ['break', 'lunch'],
     'conference-day': ['talks', 'education', 'finance', 'web3'],
     tour:             ['art', 'education', 'guided-tour'],
   };
@@ -81,6 +83,37 @@ async function loadAllEntries() {
       coordinates: programme.event.coordinates,
       priceRange: ev.priceRange ?? 'free',
       tags: ['nfc-summit', 'side-event', ...(TYPE_TAGS[ev.type] ?? ['web3'])],
+      nfcRelevant: true,
+    });
+  }
+
+  // NFC Summit sessions (Main/Kawaii/Longevity stage talks, panels, etc.)
+  // Must stay in sync with static-catalog.js sessionEntries().
+  const sessionsRaw = await readFile(
+    join(DATA_DIR, 'nfc-summit', 'sessions.json'),
+    'utf8',
+  ).catch(() => '[]');
+  const sessions = JSON.parse(sessionsRaw);
+
+  for (const s of sessions) {
+    const speakers = Array.isArray(s.speakers) && s.speakers.length
+      ? ` Speakers: ${s.speakers.join(', ')}.`
+      : '';
+    const stage = s.stage ? ` Stage: ${s.stage}.` : '';
+    const time = s.timeStart
+      ? ` ${s.date} at ${s.timeStart}${s.timeEnd ? `–${s.timeEnd}` : ''}.`
+      : '';
+    const stageTag = s.stage?.toLowerCase().replace(/\s+/g, '-') ?? 'unknown-stage';
+    entries.push({
+      id: s.id,
+      type: 'session',
+      name: s.name,
+      description: `${time}${stage}${speakers} ${s.description ?? ''}`.trim(),
+      address: programme.event.address,
+      neighbourhood: programme.event.neighbourhood,
+      coordinates: programme.event.coordinates,
+      priceRange: 'premium',
+      tags: ['nfc-summit', 'session', stageTag, ...(TYPE_TAGS[s.type] ?? [])],
       nfcRelevant: true,
     });
   }
