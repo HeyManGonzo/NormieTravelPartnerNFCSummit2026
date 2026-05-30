@@ -38,3 +38,6 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# claude code MCP config (contains API keys)
+.mcp.json
