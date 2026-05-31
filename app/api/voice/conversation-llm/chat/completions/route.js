@@ -44,6 +44,29 @@ function oneShotSSE(text) {
   );
 }
 
+// Non-streaming OpenAI chat completion object. ElevenLabs' "Test Connection"
+// probe sends stream:false and expects this JSON shape, not SSE — returning a
+// stream to a non-stream client yields "Brain returned no response".
+function jsonCompletion(text) {
+  return Response.json({
+    id: COMPLETION_ID(),
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model: REPORTED_MODEL,
+    choices: [
+      { index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' },
+    ],
+    usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+  });
+}
+
+// One-shot reply in whichever transport the caller asked for.
+function oneShot(text, wantsStream) {
+  return wantsStream
+    ? new Response(oneShotSSE(text), { headers: SSE_HEADERS })
+    : jsonCompletion(text);
+}
+
 // POST /api/voice/conversation-llm
 //
 // ElevenLabs Conversational AI custom-LLM webhook. On every conversation turn
@@ -72,15 +95,18 @@ export async function POST(req) {
     const extraBody = body?.elevenlabs_extra_body ?? body?.custom_llm_extra_body ?? {};
     const sessionId = extraBody.session_id;
     const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
+    // ElevenLabs' Test Connection probes with stream:false and expects a JSON
+    // completion; live conversation turns send stream:true and want SSE.
+    const wantsStream = body?.stream !== false;
 
     // When session_id is missing (e.g. ElevenLabs "Test Connection" probe), we
     // still need to return a valid OpenAI SSE stream so the test passes. The
     // probe doesn't include extra_body, so this branch only triggers for tests
     // or misconfigured clients.
     if (!sessionId) {
-      return new Response(
-        oneShotSSE('Custom LLM webhook reachable. Provide session_id in extra_body for real conversations.'),
-        { headers: SSE_HEADERS },
+      return oneShot(
+        'Custom LLM webhook reachable. Provide session_id in extra_body for real conversations.',
+        wantsStream,
       );
     }
 
@@ -92,9 +118,9 @@ export async function POST(req) {
       .limit(1);
 
     if (!session) {
-      return new Response(
-        oneShotSSE('Sorry, I could not find your session. Please refresh the page and try again.'),
-        { headers: SSE_HEADERS },
+      return oneShot(
+        'Sorry, I could not find your session. Please refresh the page and try again.',
+        wantsStream,
       );
     }
 
@@ -146,7 +172,7 @@ export async function POST(req) {
       // No user turn yet — ElevenLabs may call us before the first message
       // to pre-warm. Return a complete (empty-content) completion so the parser
       // sees a valid, terminated response rather than "no response".
-      return new Response(oneShotSSE(''), { headers: SSE_HEADERS });
+      return oneShot('', wantsStream);
     }
 
     // Persist the latest user turn before calling Claude.
@@ -157,6 +183,25 @@ export async function POST(req) {
         role: 'user',
         content: lastUserMsg.content,
       }).catch(() => {}); // non-fatal
+    }
+
+    // Non-streaming caller (e.g. Test Connection with stream:false): buffer the
+    // full Claude reply and return a single JSON completion.
+    if (!wantsStream) {
+      let buffered = '';
+      try {
+        for await (const token of streamFinalTurn(conversationMessages, systemPrompt)) {
+          buffered += token;
+        }
+      } catch (err) {
+        console.error('[conversation-llm] non-stream error:', err);
+      }
+      if (buffered) {
+        db.insert(schema.conversations)
+          .values({ sessionId, role: 'assistant', content: buffered })
+          .catch(() => {});
+      }
+      return jsonCompletion(buffered || 'OK.');
     }
 
     // Stream Claude's response, converting Anthropic token deltas to the
@@ -197,7 +242,8 @@ export async function POST(req) {
   } catch (err) {
     console.error('[conversation-llm] failed:', err);
     // Still return a valid, terminated completion so ElevenLabs surfaces a
-    // spoken fallback rather than a cascade error.
+    // spoken fallback rather than a cascade error. Default to SSE — by this
+    // point we may not have parsed the stream flag.
     return new Response(
       oneShotSSE('Sorry — something went wrong on my end. Could you say that again?'),
       { headers: SSE_HEADERS },
