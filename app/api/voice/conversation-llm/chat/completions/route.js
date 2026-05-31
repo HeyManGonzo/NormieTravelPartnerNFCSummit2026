@@ -253,42 +253,80 @@ export async function POST(req) {
       console.error('[conversation-llm] tool loop error:', err);
     }
 
-    // Resolve the full reply (tool-loop output, or a final generation), then
-    // SANITISE it for speech. We buffer rather than stream token-by-token so the
-    // sanitiser can act on whole URLs/links — a URL split across stream chunks
-    // could otherwise slip through. ElevenLabs TTS is unaffected by receiving
-    // the reply in one chunk.
-    let finalText = preComputedText;
-    if (finalText === null) {
-      finalText = '';
-      try {
-        for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
-          finalText += token;
-        }
-      } catch (err) {
-        console.error('[conversation-llm] final turn error:', err);
-      }
-    }
-    finalText = sanitizeForVoice(finalText) || 'Sorry, could you say that again?';
-
-    // Persist the spoken (sanitised) reply — keeps URLs out of future context too.
-    db.insert(schema.conversations)
-      .values({ sessionId, role: 'assistant', content: finalText })
-      .catch(() => {});
-
+    // Non-streaming transport (e.g. ElevenLabs Test Connection, stream:false):
+    // resolve the full reply, sanitise, return one JSON completion.
     if (!wantsStream) {
-      return jsonCompletion(finalText);
+      let buffered = preComputedText;
+      if (buffered === null) {
+        buffered = '';
+        try {
+          for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
+            buffered += token;
+          }
+        } catch (err) {
+          console.error('[conversation-llm] non-stream error:', err);
+        }
+      }
+      const clean = sanitizeForVoice(buffered) || 'OK.';
+      db.insert(schema.conversations)
+        .values({ sessionId, role: 'assistant', content: clean })
+        .catch(() => {});
+      return jsonCompletion(clean);
     }
 
+    // Streaming transport (live conversation). CRITICAL: return the Response
+    // immediately and do the work inside the async start() so the HTTP stream
+    // stays open and chunked — if we finish all work first and hand back a
+    // synchronously-closed stream, ElevenLabs' SSE parser hangs and the turn
+    // never completes (button stuck "listening"). Sanitise for speech: the
+    // common tool-loop path sanitises the whole reply at once; the streamed
+    // fallback sanitises on whitespace boundaries (bare URLs contain no spaces,
+    // so they're fully stripped before reaching TTS).
     const encoder = new TextEncoder();
     const completionId = COMPLETION_ID();
+
     const stream = new ReadableStream({
-      start(controller) {
+      async start(controller) {
         controller.enqueue(encoder.encode(chunk(completionId, { role: 'assistant' })));
-        controller.enqueue(encoder.encode(chunk(completionId, { content: finalText })));
+        let fullReply = '';
+        try {
+          if (preComputedText !== null) {
+            const clean = sanitizeForVoice(preComputedText) || 'Sorry, could you say that again?';
+            fullReply = clean;
+            controller.enqueue(encoder.encode(chunk(completionId, { content: clean })));
+          } else {
+            let pending = '';
+            for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
+              pending += token;
+              const cut = pending.lastIndexOf(' ') + 1;
+              if (cut > 0) {
+                const seg = sanitizeForVoice(pending.slice(0, cut));
+                pending = pending.slice(cut);
+                if (seg) {
+                  fullReply += `${seg} `;
+                  controller.enqueue(encoder.encode(chunk(completionId, { content: `${seg} ` })));
+                }
+              }
+            }
+            const tail = sanitizeForVoice(pending);
+            if (tail) {
+              fullReply += tail;
+              controller.enqueue(encoder.encode(chunk(completionId, { content: tail })));
+            }
+          }
+        } catch (err) {
+          console.error('[conversation-llm] stream error:', err);
+        }
+
         controller.enqueue(encoder.encode(chunk(completionId, {}, 'stop')));
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
+
+        if (fullReply.trim()) {
+          db.insert(schema.conversations)
+            .values({ sessionId, role: 'assistant', content: fullReply.trim() })
+            .catch(() => {});
+        }
       },
     });
 
