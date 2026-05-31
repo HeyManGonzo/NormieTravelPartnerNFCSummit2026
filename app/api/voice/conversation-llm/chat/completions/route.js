@@ -1,7 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db.js';
 import { buildSystemPrompt } from '@/lib/prompts/system.js';
-import { chatTurnWithTools, streamFinalTurn } from '@/lib/claude.js';
+import { chatTurnWithTools, streamTurnRaw } from '@/lib/claude.js';
 import { TOOL_DEFINITIONS, executeTool } from '@/lib/tools.js';
 
 export const runtime = 'nodejs';
@@ -108,25 +108,17 @@ function sanitizeForVoice(text) {
     .trim();
 }
 
-// Run the (mutating) tool loop against `messages`. Returns the final assistant
-// text, or null if the iteration cap was hit with tools still pending (caller
-// then streams a final turn). `onFirstToolUse` fires once, the moment a lookup
-// begins, so the streaming caller can speak a buffer word before the slow work.
-async function runToolLoop(messages, systemPrompt, sessionId, onFirstToolUse) {
-  let preComputedText = null;
-  let fired = false;
+// Non-streaming tool loop used only for the stream:false (Test Connection) path.
+// Live conversation turns use the streaming-first approach inside the ReadableStream.
+async function runToolLoopBuffered(messages, system, sessionId) {
+  let buffered = '';
   for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
     const { response, stopReason, textBlocks, toolUses } =
-      await chatTurnWithTools(messages, systemPrompt, TOOL_DEFINITIONS);
+      await chatTurnWithTools(messages, system, TOOL_DEFINITIONS);
 
     if (stopReason !== 'tool_use' || toolUses.length === 0) {
-      preComputedText = textBlocks.join('\n').trim();
+      buffered = textBlocks.join('\n').trim();
       break;
-    }
-
-    if (!fired) {
-      fired = true;
-      try { onFirstToolUse?.(); } catch { /* non-fatal */ }
     }
 
     messages.push({ role: 'assistant', content: response.content });
@@ -147,7 +139,7 @@ async function runToolLoop(messages, systemPrompt, sessionId, onFirstToolUse) {
       })),
     });
   }
-  return preComputedText;
+  return buffered;
 }
 
 // POST /api/voice/conversation-llm
@@ -269,27 +261,15 @@ export async function POST(req) {
       }).catch(() => {}); // non-fatal
     }
 
-    // Non-streaming transport (e.g. ElevenLabs Test Connection, stream:false):
-    // not latency-sensitive — run the tool loop inline, resolve the full reply,
-    // sanitise, and return one JSON completion.
+    // Non-streaming transport (ElevenLabs Test Connection, stream:false):
+    // not latency-sensitive — buffer the full reply, sanitise, return JSON.
     if (!wantsStream) {
       const messages = [...conversationMessages];
-      let preComputedText = null;
+      let buffered = '';
       try {
-        preComputedText = await runToolLoop(messages, systemPrompt, sessionId, null);
+        buffered = await runToolLoopBuffered(messages, systemPrompt, sessionId);
       } catch (err) {
-        console.error('[conversation-llm] non-stream tool loop error:', err);
-      }
-      let buffered = preComputedText;
-      if (buffered === null) {
-        buffered = '';
-        try {
-          for await (const token of streamFinalTurn(messages, systemPrompt)) {
-            buffered += token;
-          }
-        } catch (err) {
-          console.error('[conversation-llm] non-stream error:', err);
-        }
+        console.error('[conversation-llm] non-stream error:', err);
       }
       const clean = sanitizeForVoice(buffered) || 'OK.';
       db.insert(schema.conversations)
@@ -299,11 +279,11 @@ export async function POST(req) {
     }
 
     // Streaming transport (live conversation). Return the Response immediately
-    // and do ALL the work inside async start() so the SSE stream stays open and
-    // chunked. Emit the role chunk first; the moment a lookup (tool call) starts
-    // we speak a short buffer word so ElevenLabs gets audio within ~1s and won't
-    // time the turn out while tools + the second Claude call run. The answer is
-    // then word-streamed, sanitised so no URL/markdown reaches TTS.
+    // so the HTTP connection opens right away. All work happens inside async
+    // start() — text tokens flow to ElevenLabs as Claude generates them.
+    // When a lookup (tool call) starts, emit a short filler word immediately so
+    // ElevenLabs gets audio within ~1s and won't abort the turn while tools run.
+    // All emitted text is sanitised (URLs/markdown stripped) before TTS.
     const encoder = new TextEncoder();
     const completionId = COMPLETION_ID();
     const messagesForClaude = [...conversationMessages];
@@ -317,44 +297,65 @@ export async function POST(req) {
         controller.enqueue(encoder.encode(chunk(completionId, { role: 'assistant' })));
 
         let fullReply = '';
-        try {
-          let preComputedText = null;
-          try {
-            preComputedText = await runToolLoop(
-              messagesForClaude,
-              systemPrompt,
-              sessionId,
-              () => emit(`${filler} `), // spoken only when a lookup begins
-            );
-          } catch (err) {
-            console.error('[conversation-llm] tool loop error:', err);
-          }
-          console.log(`[conversation-llm] tool loop ${Date.now() - t0}ms`);
+        let fillerEmitted = false;
 
-          if (preComputedText !== null) {
-            // Word-stream the sanitised answer so ElevenLabs receives it
-            // incrementally rather than as one late chunk.
-            const clean = sanitizeForVoice(preComputedText) || 'Sorry, could you say that again?';
-            fullReply = clean;
-            for (const w of clean.split(/(\s+)/)) {
-              if (w) emit(w);
-            }
-          } else {
-            // Rare: tool iterations exhausted — stream a final turn directly,
-            // sanitising on whitespace boundaries (bare URLs have no spaces).
-            let pending = '';
-            for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
-              pending += token;
-              const cut = pending.lastIndexOf(' ') + 1;
-              if (cut > 0) {
-                const seg = sanitizeForVoice(pending.slice(0, cut));
-                pending = pending.slice(cut);
-                if (seg) { fullReply += `${seg} `; emit(`${seg} `); }
+        try {
+          for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
+            let finalMessage = null;
+            let pending = ''; // accumulate tokens for whitespace-boundary sanitisation
+
+            for await (const event of streamTurnRaw(messagesForClaude, systemPrompt, TOOL_DEFINITIONS)) {
+              if (event.type === 'text') {
+                pending += event.text;
+                // Sanitise and emit whole words (URLs are never split across words)
+                const cut = pending.lastIndexOf(' ') + 1;
+                if (cut > 0) {
+                  const seg = sanitizeForVoice(pending.slice(0, cut));
+                  pending = pending.slice(cut);
+                  if (seg) { fullReply += `${seg} `; emit(`${seg} `); }
+                }
+              } else if (event.type === 'final') {
+                finalMessage = event.message;
               }
             }
+            // Flush remainder
             const tail = sanitizeForVoice(pending);
             if (tail) { fullReply += tail; emit(tail); }
-            if (!fullReply.trim()) { fullReply = 'Sorry, could you say that again?'; emit(fullReply); }
+
+            console.log(`[conversation-llm] iter ${iter} ${Date.now() - t0}ms stop=${finalMessage?.stop_reason}`);
+
+            const toolUses = (finalMessage?.content ?? []).filter((b) => b.type === 'tool_use');
+            if (finalMessage?.stop_reason !== 'tool_use' || toolUses.length === 0) break;
+
+            // First tool call detected — emit filler so ElevenLabs gets audio
+            // while tools + the next generation run.
+            if (!fillerEmitted) {
+              fillerEmitted = true;
+              const fillerText = sanitizeForVoice(`${filler} `);
+              if (fillerText) { fullReply += fillerText; emit(fillerText); }
+            }
+
+            messagesForClaude.push({ role: 'assistant', content: finalMessage.content });
+            const results = await Promise.all(
+              toolUses.map(async (tu) => ({
+                id: tu.id,
+                result: await executeTool(tu.name, tu.input, { sessionId }),
+              })),
+            );
+            messagesForClaude.push({
+              role: 'user',
+              content: results.map((r) => ({
+                type: 'tool_result',
+                tool_use_id: r.id,
+                content: JSON.stringify(r.result),
+              })),
+            });
+          }
+
+          if (!fullReply.trim()) {
+            const fallback = 'Sorry, could you say that again?';
+            fullReply = fallback;
+            emit(fallback);
           }
         } catch (err) {
           console.error('[conversation-llm] stream error:', err);
@@ -364,7 +365,7 @@ export async function POST(req) {
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
 
-        // Persist the answer only (not the spoken filler) for chat history.
+        // Persist the answer (not the filler) for chat history.
         if (fullReply.trim()) {
           db.insert(schema.conversations)
             .values({ sessionId, role: 'assistant', content: fullReply.trim() })

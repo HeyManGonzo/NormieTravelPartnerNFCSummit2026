@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { asc, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db.js';
 import { getOrCreateSession } from '@/lib/session.js';
-import { chatTurnWithTools, streamFinalTurn } from '@/lib/claude.js';
+import { streamTurnRaw } from '@/lib/claude.js';
 import { buildSystemPrompt } from '@/lib/prompts/system.js';
 import { extractProfile, mergeProfile } from '@/lib/profile-extractor.js';
 import { TOOL_DEFINITIONS, executeTool } from '@/lib/tools.js';
@@ -125,48 +125,14 @@ export async function POST(req) {
         : null,
     });
 
-    // Tool loop — non-streaming. Runs until Claude stops requesting tools or
-    // MAX_TOOL_ITERATIONS is reached. When Claude produces final text within
-    // the loop it is stored in preComputedText and word-streamed via SSE.
-    // When the loop exhausts all iterations with pending tool results,
-    // preComputedText stays null and streamFinalTurn handles the last turn
-    // with real token-by-token streaming.
+    // Streaming-first tool loop. The Response is returned immediately so the
+    // HTTP connection opens and the client sees the thinking indicator right
+    // away. All work (tool calls, final generation, DB writes, profile
+    // extraction) happens inside the ReadableStream's async start() callback,
+    // which keeps the serverless function alive until the stream closes.
     const messagesForClaude = [...history, { role: 'user', content: userMessage }];
     const toolTrace = [];
-    let preComputedText = null;
 
-    for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
-      const { response, stopReason, textBlocks, toolUses } =
-        await chatTurnWithTools(messagesForClaude, systemPrompt, TOOL_DEFINITIONS);
-
-      if (stopReason !== 'tool_use' || toolUses.length === 0) {
-        preComputedText = textBlocks.join('\n').trim();
-        break;
-      }
-
-      messagesForClaude.push({ role: 'assistant', content: response.content });
-
-      const results = await Promise.all(
-        toolUses.map(async (tu) => {
-          const result = await executeTool(tu.name, tu.input, { sessionId: session.id });
-          toolTrace.push({ name: tu.name, input: tu.input, ok: !result?.error });
-          return { id: tu.id, result };
-        }),
-      );
-
-      messagesForClaude.push({
-        role: 'user',
-        content: results.map((r) => ({
-          type: 'tool_result',
-          tool_use_id: r.id,
-          content: JSON.stringify(r.result),
-        })),
-      });
-    }
-
-    // Return a Server-Sent Events stream. Keeping the response open while DB
-    // writes and profile extraction run means no waitUntil hack is needed —
-    // the serverless function stays alive until the stream closes.
     const encoder = new TextEncoder();
     const sse = (obj) => encoder.encode(`data: ${JSON.stringify(obj)}\n\n`);
 
@@ -177,24 +143,42 @@ export async function POST(req) {
         let replyText = '';
 
         try {
-          if (preComputedText !== null) {
-            // Common path (no tool iterations hit the limit): Claude already
-            // produced the text. Stream it word-by-word so the client renders
-            // progressively even though the text was pre-computed.
-            replyText = preComputedText || "Sorry — I lost my thread for a moment. Can you ask that again?";
-            for (const chunk of replyText.split(/(\s+)/)) {
-              if (chunk) controller.enqueue(sse({ type: 'token', text: chunk }));
-              await Promise.resolve();
+          for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
+            let finalMessage = null;
+
+            for await (const event of streamTurnRaw(messagesForClaude, systemPrompt, TOOL_DEFINITIONS)) {
+              if (event.type === 'text') {
+                replyText += event.text;
+                controller.enqueue(sse({ type: 'token', text: event.text }));
+              } else if (event.type === 'final') {
+                finalMessage = event.message;
+              }
             }
-          } else {
-            // Tool loop ran out of iterations — ask Claude for the final answer
-            // with real streaming so tokens flow directly to the browser.
-            for await (const chunk of streamFinalTurn(messagesForClaude, systemPrompt)) {
-              replyText += chunk;
-              controller.enqueue(sse({ type: 'token', text: chunk }));
-            }
-            if (!replyText) replyText = "Sorry — I lost my thread for a moment. Can you ask that again?";
+
+            const toolUses = (finalMessage?.content ?? []).filter((b) => b.type === 'tool_use');
+            if (finalMessage?.stop_reason !== 'tool_use' || toolUses.length === 0) break;
+
+            messagesForClaude.push({ role: 'assistant', content: finalMessage.content });
+
+            const results = await Promise.all(
+              toolUses.map(async (tu) => {
+                const result = await executeTool(tu.name, tu.input, { sessionId: session.id });
+                toolTrace.push({ name: tu.name, input: tu.input, ok: !result?.error });
+                return { id: tu.id, result };
+              }),
+            );
+
+            messagesForClaude.push({
+              role: 'user',
+              content: results.map((r) => ({
+                type: 'tool_result',
+                tool_use_id: r.id,
+                content: JSON.stringify(r.result),
+              })),
+            });
           }
+
+          if (!replyText) replyText = "Sorry — I lost my thread for a moment. Can you ask that again?";
         } catch (err) {
           console.error('[api/chat stream]', err);
           controller.enqueue(sse({ type: 'error', message: 'Stream failed. Please try again.' }));
