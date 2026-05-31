@@ -1,7 +1,8 @@
 import { desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db.js';
 import { buildSystemPrompt } from '@/lib/prompts/system.js';
-import { streamFinalTurn } from '@/lib/claude.js';
+import { chatTurnWithTools, streamFinalTurn } from '@/lib/claude.js';
+import { TOOL_DEFINITIONS, executeTool } from '@/lib/tools.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,9 @@ export const dynamic = 'force-dynamic';
 // How many recent turns to pass to Claude. Voice conversations are fast-paced
 // so a shorter window keeps the context lean and latency low.
 const VOICE_HISTORY_LIMIT = 10;
+// Voice gets the same tool loop as text chat so Gemel can do live lookups
+// (places, weather, events, ratings). Capped to keep time-to-first-audio sane.
+const MAX_TOOL_ITERATIONS = 4;
 
 const SSE_HEADERS = {
   'Content-Type': 'text/event-stream',
@@ -140,6 +144,7 @@ export async function POST(req) {
 
     const systemPrompt = buildSystemPrompt({
       session,
+      voice: true,
       tripProfile,
       itinerarySummary: latestItinerary
         ? {
@@ -185,16 +190,59 @@ export async function POST(req) {
       }).catch(() => {}); // non-fatal
     }
 
-    // Non-streaming caller (e.g. Test Connection with stream:false): buffer the
-    // full Claude reply and return a single JSON completion.
-    if (!wantsStream) {
-      let buffered = '';
-      try {
-        for await (const token of streamFinalTurn(conversationMessages, systemPrompt)) {
-          buffered += token;
+    // Tool loop — same pattern as the text chat route so voice Gemel can do
+    // live lookups (searchKnowledge, searchPlaces, getWeather, findEvents,
+    // Tripadvisor, saveItinerary, …). Non-streaming; runs until Claude stops
+    // requesting tools or the iteration cap is hit. If Claude produces final
+    // text inside the loop it lands in preComputedText; otherwise the final
+    // turn is generated below. messagesForClaude accumulates tool results.
+    const messagesForClaude = [...conversationMessages];
+    let preComputedText = null;
+    try {
+      for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
+        const { response, stopReason, textBlocks, toolUses } =
+          await chatTurnWithTools(messagesForClaude, systemPrompt, TOOL_DEFINITIONS);
+
+        if (stopReason !== 'tool_use' || toolUses.length === 0) {
+          preComputedText = textBlocks.join('\n').trim();
+          break;
         }
-      } catch (err) {
-        console.error('[conversation-llm] non-stream error:', err);
+
+        messagesForClaude.push({ role: 'assistant', content: response.content });
+
+        const results = await Promise.all(
+          toolUses.map(async (tu) => {
+            const result = await executeTool(tu.name, tu.input, { sessionId });
+            return { id: tu.id, result };
+          }),
+        );
+
+        messagesForClaude.push({
+          role: 'user',
+          content: results.map((r) => ({
+            type: 'tool_result',
+            tool_use_id: r.id,
+            content: JSON.stringify(r.result),
+          })),
+        });
+      }
+    } catch (err) {
+      console.error('[conversation-llm] tool loop error:', err);
+    }
+
+    // Non-streaming caller (e.g. Test Connection with stream:false): resolve the
+    // full reply and return a single JSON completion.
+    if (!wantsStream) {
+      let buffered = preComputedText;
+      if (buffered === null) {
+        buffered = '';
+        try {
+          for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
+            buffered += token;
+          }
+        } catch (err) {
+          console.error('[conversation-llm] non-stream error:', err);
+        }
       }
       if (buffered) {
         db.insert(schema.conversations)
@@ -205,7 +253,8 @@ export async function POST(req) {
     }
 
     // Stream Claude's response, converting Anthropic token deltas to the
-    // OpenAI chunk format ElevenLabs expects.
+    // OpenAI chunk format ElevenLabs expects. When the tool loop already
+    // produced the final text, emit it as a single content chunk.
     const encoder = new TextEncoder();
     const completionId = COMPLETION_ID();
     let fullReply = '';
@@ -215,9 +264,16 @@ export async function POST(req) {
         // Opening chunk announces the assistant role (OpenAI convention).
         controller.enqueue(encoder.encode(chunk(completionId, { role: 'assistant' })));
         try {
-          for await (const token of streamFinalTurn(conversationMessages, systemPrompt)) {
-            fullReply += token;
-            controller.enqueue(encoder.encode(chunk(completionId, { content: token })));
+          if (preComputedText !== null) {
+            fullReply = preComputedText;
+            if (fullReply) {
+              controller.enqueue(encoder.encode(chunk(completionId, { content: fullReply })));
+            }
+          } else {
+            for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
+              fullReply += token;
+              controller.enqueue(encoder.encode(chunk(completionId, { content: token })));
+            }
           }
         } catch (err) {
           console.error('[conversation-llm] stream error:', err);
