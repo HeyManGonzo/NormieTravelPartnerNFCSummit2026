@@ -10,6 +10,40 @@ export const dynamic = 'force-dynamic';
 // so a shorter window keeps the context lean and latency low.
 const VOICE_HISTORY_LIMIT = 10;
 
+const SSE_HEADERS = {
+  'Content-Type': 'text/event-stream',
+  'Cache-Control': 'no-cache',
+  Connection: 'keep-alive',
+};
+
+// ElevenLabs' "Brain" parser requires fully OpenAI-compliant chat completion
+// chunks — the bare {"choices":[{"delta":...}]} shape makes it report
+// "Brain returned no response". Each chunk needs id/object/created/model and the
+// stream must end with a chunk carrying finish_reason:"stop" before [DONE].
+const COMPLETION_ID = () => `chatcmpl-${Math.random().toString(36).slice(2)}`;
+const REPORTED_MODEL = 'claude-sonnet-4-5';
+
+function chunk(id, delta, finishReason = null) {
+  return `data: ${JSON.stringify({
+    id,
+    object: 'chat.completion.chunk',
+    created: Math.floor(Date.now() / 1000),
+    model: REPORTED_MODEL,
+    choices: [{ index: 0, delta, finish_reason: finishReason }],
+  })}\n\n`;
+}
+
+// Build a complete one-shot SSE body: role chunk → content chunk → stop → [DONE].
+function oneShotSSE(text) {
+  const id = COMPLETION_ID();
+  return (
+    chunk(id, { role: 'assistant' }) +
+    chunk(id, { content: text }) +
+    chunk(id, {}, 'stop') +
+    'data: [DONE]\n\n'
+  );
+}
+
 // POST /api/voice/conversation-llm
 //
 // ElevenLabs Conversational AI custom-LLM webhook. On every conversation turn
@@ -44,14 +78,10 @@ export async function POST(req) {
     // probe doesn't include extra_body, so this branch only triggers for tests
     // or misconfigured clients.
     if (!sessionId) {
-      const probe = [
-        `data: ${JSON.stringify({ choices: [{ delta: { role: 'assistant' }, index: 0 }] })}\n\n`,
-        `data: ${JSON.stringify({ choices: [{ delta: { content: 'Custom LLM webhook reachable. Provide session_id in extra_body for real conversations.' }, index: 0 }] })}\n\n`,
-        'data: [DONE]\n\n',
-      ].join('');
-      return new Response(probe, {
-        headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
-      });
+      return new Response(
+        oneShotSSE('Custom LLM webhook reachable. Provide session_id in extra_body for real conversations.'),
+        { headers: SSE_HEADERS },
+      );
     }
 
     // Load session and context from DB.
@@ -62,13 +92,10 @@ export async function POST(req) {
       .limit(1);
 
     if (!session) {
-      const notFound = [
-        `data: ${JSON.stringify({ choices: [{ delta: { content: 'Sorry, I could not find your session. Please refresh the page and try again.' }, index: 0 }] })}\n\n`,
-        'data: [DONE]\n\n',
-      ].join('');
-      return new Response(notFound, {
-        headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
-      });
+      return new Response(
+        oneShotSSE('Sorry, I could not find your session. Please refresh the page and try again.'),
+        { headers: SSE_HEADERS },
+      );
     }
 
     const [[tripProfile], [latestItinerary]] = await Promise.all([
@@ -117,10 +144,9 @@ export async function POST(req) {
 
     if (conversationMessages.length === 0) {
       // No user turn yet — ElevenLabs may call us before the first message
-      // to pre-warm. Return an empty done event.
-      return new Response('data: [DONE]\n\n', {
-        headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
-      });
+      // to pre-warm. Return a complete (empty-content) completion so the parser
+      // sees a valid, terminated response rather than "no response".
+      return new Response(oneShotSSE(''), { headers: SSE_HEADERS });
     }
 
     // Persist the latest user turn before calling Claude.
@@ -136,20 +162,25 @@ export async function POST(req) {
     // Stream Claude's response, converting Anthropic token deltas to the
     // OpenAI chunk format ElevenLabs expects.
     const encoder = new TextEncoder();
+    const completionId = COMPLETION_ID();
     let fullReply = '';
 
     const stream = new ReadableStream({
       async start(controller) {
+        // Opening chunk announces the assistant role (OpenAI convention).
+        controller.enqueue(encoder.encode(chunk(completionId, { role: 'assistant' })));
         try {
-          for await (const chunk of streamFinalTurn(conversationMessages, systemPrompt)) {
-            fullReply += chunk;
-            const data = JSON.stringify({ choices: [{ delta: { content: chunk }, index: 0 }] });
-            controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+          for await (const token of streamFinalTurn(conversationMessages, systemPrompt)) {
+            fullReply += token;
+            controller.enqueue(encoder.encode(chunk(completionId, { content: token })));
           }
         } catch (err) {
           console.error('[conversation-llm] stream error:', err);
         }
 
+        // Final chunk must carry finish_reason so the parser closes the
+        // completion, then the [DONE] sentinel.
+        controller.enqueue(encoder.encode(chunk(completionId, {}, 'stop')));
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
 
@@ -162,17 +193,14 @@ export async function POST(req) {
       },
     });
 
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
+    return new Response(stream, { headers: SSE_HEADERS });
   } catch (err) {
     console.error('[conversation-llm] failed:', err);
-    return new Response(`data: {"error":"${err.message}"}\n\ndata: [DONE]\n\n`, {
-      headers: { 'Content-Type': 'text/event-stream' },
-    });
+    // Still return a valid, terminated completion so ElevenLabs surfaces a
+    // spoken fallback rather than a cascade error.
+    return new Response(
+      oneShotSSE('Sorry — something went wrong on my end. Could you say that again?'),
+      { headers: SSE_HEADERS },
+    );
   }
 }
