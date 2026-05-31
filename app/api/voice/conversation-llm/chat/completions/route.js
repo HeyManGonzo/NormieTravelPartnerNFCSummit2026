@@ -11,8 +11,22 @@ export const dynamic = 'force-dynamic';
 // so a shorter window keeps the context lean and latency low.
 const VOICE_HISTORY_LIMIT = 10;
 // Voice gets the same tool loop as text chat so Gemel can do live lookups
-// (places, weather, events, ratings). Capped to keep time-to-first-audio sane.
-const MAX_TOOL_ITERATIONS = 4;
+// (places, weather, events, ratings). Capped tighter than text chat to bound
+// time-to-first-audio — ElevenLabs aborts a turn whose LLM is slow to respond.
+const MAX_TOOL_ITERATIONS = 2;
+
+// Spoken "buffer word" emitted the instant a lookup (tool call) starts, so
+// ElevenLabs gets audio within ~1s and doesn't time out the turn while the
+// tools + answer generation run. Only fires on tool turns; keyed off session
+// language with an English fallback.
+const FILLERS = {
+  en: 'Let me check that.',
+  pt: 'Deixa eu ver isso.',
+  es: 'Déjame ver eso.',
+  fr: 'Laisse-moi vérifier.',
+  de: 'Lass mich kurz nachsehen.',
+  tr: 'Bir bakayım.',
+};
 
 const SSE_HEADERS = {
   'Content-Type': 'text/event-stream',
@@ -92,6 +106,48 @@ function sanitizeForVoice(text) {
     .replace(/[ \t]{2,}/g, ' ')                         // collapse double spaces
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+// Run the (mutating) tool loop against `messages`. Returns the final assistant
+// text, or null if the iteration cap was hit with tools still pending (caller
+// then streams a final turn). `onFirstToolUse` fires once, the moment a lookup
+// begins, so the streaming caller can speak a buffer word before the slow work.
+async function runToolLoop(messages, systemPrompt, sessionId, onFirstToolUse) {
+  let preComputedText = null;
+  let fired = false;
+  for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
+    const { response, stopReason, textBlocks, toolUses } =
+      await chatTurnWithTools(messages, systemPrompt, TOOL_DEFINITIONS);
+
+    if (stopReason !== 'tool_use' || toolUses.length === 0) {
+      preComputedText = textBlocks.join('\n').trim();
+      break;
+    }
+
+    if (!fired) {
+      fired = true;
+      try { onFirstToolUse?.(); } catch { /* non-fatal */ }
+    }
+
+    messages.push({ role: 'assistant', content: response.content });
+
+    const results = await Promise.all(
+      toolUses.map(async (tu) => ({
+        id: tu.id,
+        result: await executeTool(tu.name, tu.input, { sessionId }),
+      })),
+    );
+
+    messages.push({
+      role: 'user',
+      content: results.map((r) => ({
+        type: 'tool_result',
+        tool_use_id: r.id,
+        content: JSON.stringify(r.result),
+      })),
+    });
+  }
+  return preComputedText;
 }
 
 // POST /api/voice/conversation-llm
@@ -213,54 +269,22 @@ export async function POST(req) {
       }).catch(() => {}); // non-fatal
     }
 
-    // Tool loop — same pattern as the text chat route so voice Gemel can do
-    // live lookups (searchKnowledge, searchPlaces, getWeather, findEvents,
-    // Tripadvisor, saveItinerary, …). Non-streaming; runs until Claude stops
-    // requesting tools or the iteration cap is hit. If Claude produces final
-    // text inside the loop it lands in preComputedText; otherwise the final
-    // turn is generated below. messagesForClaude accumulates tool results.
-    const messagesForClaude = [...conversationMessages];
-    let preComputedText = null;
-    try {
-      for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
-        const { response, stopReason, textBlocks, toolUses } =
-          await chatTurnWithTools(messagesForClaude, systemPrompt, TOOL_DEFINITIONS);
-
-        if (stopReason !== 'tool_use' || toolUses.length === 0) {
-          preComputedText = textBlocks.join('\n').trim();
-          break;
-        }
-
-        messagesForClaude.push({ role: 'assistant', content: response.content });
-
-        const results = await Promise.all(
-          toolUses.map(async (tu) => {
-            const result = await executeTool(tu.name, tu.input, { sessionId });
-            return { id: tu.id, result };
-          }),
-        );
-
-        messagesForClaude.push({
-          role: 'user',
-          content: results.map((r) => ({
-            type: 'tool_result',
-            tool_use_id: r.id,
-            content: JSON.stringify(r.result),
-          })),
-        });
-      }
-    } catch (err) {
-      console.error('[conversation-llm] tool loop error:', err);
-    }
-
     // Non-streaming transport (e.g. ElevenLabs Test Connection, stream:false):
-    // resolve the full reply, sanitise, return one JSON completion.
+    // not latency-sensitive — run the tool loop inline, resolve the full reply,
+    // sanitise, and return one JSON completion.
     if (!wantsStream) {
+      const messages = [...conversationMessages];
+      let preComputedText = null;
+      try {
+        preComputedText = await runToolLoop(messages, systemPrompt, sessionId, null);
+      } catch (err) {
+        console.error('[conversation-llm] non-stream tool loop error:', err);
+      }
       let buffered = preComputedText;
       if (buffered === null) {
         buffered = '';
         try {
-          for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
+          for await (const token of streamFinalTurn(messages, systemPrompt)) {
             buffered += token;
           }
         } catch (err) {
@@ -274,27 +298,50 @@ export async function POST(req) {
       return jsonCompletion(clean);
     }
 
-    // Streaming transport (live conversation). CRITICAL: return the Response
-    // immediately and do the work inside the async start() so the HTTP stream
-    // stays open and chunked — if we finish all work first and hand back a
-    // synchronously-closed stream, ElevenLabs' SSE parser hangs and the turn
-    // never completes (button stuck "listening"). Sanitise for speech: the
-    // common tool-loop path sanitises the whole reply at once; the streamed
-    // fallback sanitises on whitespace boundaries (bare URLs contain no spaces,
-    // so they're fully stripped before reaching TTS).
+    // Streaming transport (live conversation). Return the Response immediately
+    // and do ALL the work inside async start() so the SSE stream stays open and
+    // chunked. Emit the role chunk first; the moment a lookup (tool call) starts
+    // we speak a short buffer word so ElevenLabs gets audio within ~1s and won't
+    // time the turn out while tools + the second Claude call run. The answer is
+    // then word-streamed, sanitised so no URL/markdown reaches TTS.
     const encoder = new TextEncoder();
     const completionId = COMPLETION_ID();
+    const messagesForClaude = [...conversationMessages];
+    const filler = FILLERS[session?.language] ?? FILLERS.en;
 
     const stream = new ReadableStream({
       async start(controller) {
+        const t0 = Date.now();
+        const emit = (content) =>
+          controller.enqueue(encoder.encode(chunk(completionId, { content })));
         controller.enqueue(encoder.encode(chunk(completionId, { role: 'assistant' })));
+
         let fullReply = '';
         try {
+          let preComputedText = null;
+          try {
+            preComputedText = await runToolLoop(
+              messagesForClaude,
+              systemPrompt,
+              sessionId,
+              () => emit(`${filler} `), // spoken only when a lookup begins
+            );
+          } catch (err) {
+            console.error('[conversation-llm] tool loop error:', err);
+          }
+          console.log(`[conversation-llm] tool loop ${Date.now() - t0}ms`);
+
           if (preComputedText !== null) {
+            // Word-stream the sanitised answer so ElevenLabs receives it
+            // incrementally rather than as one late chunk.
             const clean = sanitizeForVoice(preComputedText) || 'Sorry, could you say that again?';
             fullReply = clean;
-            controller.enqueue(encoder.encode(chunk(completionId, { content: clean })));
+            for (const w of clean.split(/(\s+)/)) {
+              if (w) emit(w);
+            }
           } else {
+            // Rare: tool iterations exhausted — stream a final turn directly,
+            // sanitising on whitespace boundaries (bare URLs have no spaces).
             let pending = '';
             for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
               pending += token;
@@ -302,17 +349,12 @@ export async function POST(req) {
               if (cut > 0) {
                 const seg = sanitizeForVoice(pending.slice(0, cut));
                 pending = pending.slice(cut);
-                if (seg) {
-                  fullReply += `${seg} `;
-                  controller.enqueue(encoder.encode(chunk(completionId, { content: `${seg} ` })));
-                }
+                if (seg) { fullReply += `${seg} `; emit(`${seg} `); }
               }
             }
             const tail = sanitizeForVoice(pending);
-            if (tail) {
-              fullReply += tail;
-              controller.enqueue(encoder.encode(chunk(completionId, { content: tail })));
-            }
+            if (tail) { fullReply += tail; emit(tail); }
+            if (!fullReply.trim()) { fullReply = 'Sorry, could you say that again?'; emit(fullReply); }
           }
         } catch (err) {
           console.error('[conversation-llm] stream error:', err);
@@ -322,6 +364,7 @@ export async function POST(req) {
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
 
+        // Persist the answer only (not the spoken filler) for chat history.
         if (fullReply.trim()) {
           db.insert(schema.conversations)
             .values({ sessionId, role: 'assistant', content: fullReply.trim() })
