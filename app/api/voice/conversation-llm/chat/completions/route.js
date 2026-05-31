@@ -71,6 +71,29 @@ function oneShot(text, wantsStream) {
     : jsonCompletion(text);
 }
 
+// Hard guarantee that voice Gemel never speaks a URL or markdown aloud. The
+// VOICE_OUTPUT_RULES prompt reduces this but isn't reliable, so we strip it
+// server-side before the text reaches ElevenLabs TTS. Belt and suspenders.
+function sanitizeForVoice(text) {
+  if (!text) return '';
+  return text
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')            // [label](url) → label
+    .replace(/\bhttps?:\/\/\S+/gi, '')                  // http(s):// URLs
+    .replace(/\bwww\.\S+/gi, '')                        // www. URLs
+    // bare domains like "normieagent.com" or "luma.com/x" (TLD-anchored)
+    .replace(/\b[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:com|net|org|io|art|co|pt|eu|app|xyz|gg|dev|ai|me|tv)(?:\/\S*)?/gi, '')
+    .replace(/\*{1,3}([^*\n]+)\*{1,3}/g, '$1')          // **bold** / *italic*
+    .replace(/_{1,2}([^_\n]+)_{1,2}/g, '$1')            // _italic_
+    .replace(/`([^`]+)`/g, '$1')                        // `inline code`
+    .replace(/```[\s\S]*?```/g, '')                     // fenced code blocks
+    .replace(/^#{1,6}\s+/gm, '')                        // ## headings
+    .replace(/\(\s*\)/g, '')                            // empty () left by URL removal
+    .replace(/\s+([.,!?;:])/g, '$1')                    // stray space before punctuation
+    .replace(/[ \t]{2,}/g, ' ')                         // collapse double spaces
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // POST /api/voice/conversation-llm
 //
 // ElevenLabs Conversational AI custom-LLM webhook. On every conversation turn
@@ -230,67 +253,42 @@ export async function POST(req) {
       console.error('[conversation-llm] tool loop error:', err);
     }
 
-    // Non-streaming caller (e.g. Test Connection with stream:false): resolve the
-    // full reply and return a single JSON completion.
-    if (!wantsStream) {
-      let buffered = preComputedText;
-      if (buffered === null) {
-        buffered = '';
-        try {
-          for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
-            buffered += token;
-          }
-        } catch (err) {
-          console.error('[conversation-llm] non-stream error:', err);
+    // Resolve the full reply (tool-loop output, or a final generation), then
+    // SANITISE it for speech. We buffer rather than stream token-by-token so the
+    // sanitiser can act on whole URLs/links — a URL split across stream chunks
+    // could otherwise slip through. ElevenLabs TTS is unaffected by receiving
+    // the reply in one chunk.
+    let finalText = preComputedText;
+    if (finalText === null) {
+      finalText = '';
+      try {
+        for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
+          finalText += token;
         }
+      } catch (err) {
+        console.error('[conversation-llm] final turn error:', err);
       }
-      if (buffered) {
-        db.insert(schema.conversations)
-          .values({ sessionId, role: 'assistant', content: buffered })
-          .catch(() => {});
-      }
-      return jsonCompletion(buffered || 'OK.');
+    }
+    finalText = sanitizeForVoice(finalText) || 'Sorry, could you say that again?';
+
+    // Persist the spoken (sanitised) reply — keeps URLs out of future context too.
+    db.insert(schema.conversations)
+      .values({ sessionId, role: 'assistant', content: finalText })
+      .catch(() => {});
+
+    if (!wantsStream) {
+      return jsonCompletion(finalText);
     }
 
-    // Stream Claude's response, converting Anthropic token deltas to the
-    // OpenAI chunk format ElevenLabs expects. When the tool loop already
-    // produced the final text, emit it as a single content chunk.
     const encoder = new TextEncoder();
     const completionId = COMPLETION_ID();
-    let fullReply = '';
-
     const stream = new ReadableStream({
-      async start(controller) {
-        // Opening chunk announces the assistant role (OpenAI convention).
+      start(controller) {
         controller.enqueue(encoder.encode(chunk(completionId, { role: 'assistant' })));
-        try {
-          if (preComputedText !== null) {
-            fullReply = preComputedText;
-            if (fullReply) {
-              controller.enqueue(encoder.encode(chunk(completionId, { content: fullReply })));
-            }
-          } else {
-            for await (const token of streamFinalTurn(messagesForClaude, systemPrompt)) {
-              fullReply += token;
-              controller.enqueue(encoder.encode(chunk(completionId, { content: token })));
-            }
-          }
-        } catch (err) {
-          console.error('[conversation-llm] stream error:', err);
-        }
-
-        // Final chunk must carry finish_reason so the parser closes the
-        // completion, then the [DONE] sentinel.
+        controller.enqueue(encoder.encode(chunk(completionId, { content: finalText })));
         controller.enqueue(encoder.encode(chunk(completionId, {}, 'stop')));
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
-
-        // Persist assistant reply after stream closes (non-blocking).
-        if (fullReply) {
-          db.insert(schema.conversations)
-            .values({ sessionId, role: 'assistant', content: fullReply })
-            .catch(() => {});
-        }
       },
     });
 
