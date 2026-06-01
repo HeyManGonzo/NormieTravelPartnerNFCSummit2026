@@ -309,37 +309,35 @@ export async function POST(req) {
         try {
           for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
             let finalMessage = null;
-            let pending = ''; // accumulate tokens for whitespace-boundary sanitisation
+            let iterText = ''; // buffer the full iteration text before sanitising
 
             for await (const event of streamTurnRaw(messagesForClaude, systemPrompt, TOOL_DEFINITIONS, { model: iter === 0 ? VOICE_DECISION_MODEL : undefined })) {
-              if (event.type === 'text') {
-                pending += event.text;
-                // Sanitise and emit whole words (URLs are never split across words)
-                const cut = pending.lastIndexOf(' ') + 1;
-                if (cut > 0) {
-                  const seg = sanitizeForVoice(pending.slice(0, cut));
-                  pending = pending.slice(cut);
-                  if (seg) { fullReply += `${seg} `; emit(`${seg} `); }
-                }
-              } else if (event.type === 'final') {
-                finalMessage = event.message;
-              }
+              if (event.type === 'text') iterText += event.text;
+              else if (event.type === 'final') finalMessage = event.message;
             }
-            // Flush remainder
-            const tail = sanitizeForVoice(pending);
-            if (tail) { fullReply += tail; emit(tail); }
 
             console.log(`[conversation-llm] iter ${iter} ${Date.now() - t0}ms stop=${finalMessage?.stop_reason}`);
 
             const toolUses = (finalMessage?.content ?? []).filter((b) => b.type === 'tool_use');
-            if (finalMessage?.stop_reason !== 'tool_use' || toolUses.length === 0) break;
+            const isFinalTurn = finalMessage?.stop_reason !== 'tool_use' || toolUses.length === 0;
 
-            // First tool call detected — emit filler so ElevenLabs gets audio
-            // while tools + the next generation run.
+            if (isFinalTurn) {
+              // Final answer — sanitise the complete text so multi-word markdown
+              // links like [Name](url) are stripped cleanly in one pass.
+              const clean = sanitizeForVoice(iterText);
+              if (clean) { fullReply += clean; emit(clean); }
+              break;
+            }
+
+            // Tool call — emit filler ONLY if Haiku didn't already narrate its
+            // intent ("I'll search for…"). If it did, use that as the filler so
+            // we don't double up with "I'll search… Let me check that."
             if (!fillerEmitted) {
               fillerEmitted = true;
-              const fillerText = sanitizeForVoice(`${filler} `);
-              if (fillerText) { fullReply += fillerText; emit(fillerText); }
+              const spokenSoFar = sanitizeForVoice(iterText);
+              const spoken = spokenSoFar || filler;
+              fullReply += `${spoken} `;
+              emit(`${spoken} `);
             }
 
             messagesForClaude.push({ role: 'assistant', content: finalMessage.content });
