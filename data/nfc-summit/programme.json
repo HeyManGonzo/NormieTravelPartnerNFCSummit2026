@@ -315,6 +315,20 @@
       "ticketType": "Normies NFT holder required + wallet verification"
     },
     {
+      "id": "100-collectors-meet-artist-cherniak-day3",
+      "name": "Day 3 | 100 Collectors Meet-the-Artist Tour with Dmitri Cherniak",
+      "dates": ["2026-06-06"],
+      "timeStart": "12:00",
+      "venue": "Central Plaza by the Ringers LED Triptych Sculpture, Unicorn Factory Lisboa",
+      "address": "Av. Infante Dom Henrique 143, 1950-406 Lisboa",
+      "organiser": "100 collectors & NFC SUMMIT",
+      "type": "tour",
+      "description": "Closing-day meet-the-artist tour with Dmitri Cherniak at the Ringers LED Triptych Sculpture. Collector-lens walkthrough and conversation with the artist. Requires a valid NFC Summit ticket.",
+      "lumaUrl": "https://luma.com/nfcsummit",
+      "ticketRequired": true,
+      "ticketType": "NFC Summit ticket required"
+    },
+    {
       "id": "100-collectors-art-tour-day3",
       "name": "Day 3 | 100 Collectors Art Tour at NFC",
       "dates": ["2026-06-06"],
