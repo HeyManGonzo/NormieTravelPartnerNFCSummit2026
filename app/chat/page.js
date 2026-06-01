@@ -19,9 +19,23 @@ export default function ChatPage() {
   const [shareToken, setShareToken] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [streaming, setStreaming] = useState(false);
+  const [showStrikeBanner, setShowStrikeBanner] = useState(false);
   const bootstrapped = useRef(false);
 
   const t = getMessages(locale);
+
+  // Time-boxed banner for the 3 June 2026 Lisbon transport strike. Shows until
+  // the morning of 4 June (Lisbon time) unless the visitor has dismissed it.
+  useEffect(() => {
+    const beforeSummit = new Date() < new Date('2026-06-04T00:00:00+01:00');
+    const dismissed = localStorage.getItem('strikeBannerDismissed') === '1';
+    if (beforeSummit && !dismissed) setShowStrikeBanner(true);
+  }, []);
+
+  const dismissStrikeBanner = useCallback(() => {
+    setShowStrikeBanner(false);
+    try { localStorage.setItem('strikeBannerDismissed', '1'); } catch {}
+  }, []);
 
   const fetchItinerary = useCallback(async () => {
     try {
@@ -257,6 +271,32 @@ export default function ChatPage() {
           <LanguageSwitcher value={locale} onChange={setLocale} />
         </div>
       </header>
+
+      {showStrikeBanner && (
+        <div className="flex shrink-0 items-start gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-[13px] text-[color:var(--color-text)] sm:px-6">
+          <span aria-hidden className="mt-0.5 text-amber-400">⚠️</span>
+          <div className="flex-1 leading-snug">
+            <strong>June 3 — national transport strike in Lisbon.</strong>{' '}
+            Metro, trains and most buses are down and many flights are affected the day
+            before the Summit.{' '}
+            <button
+              type="button"
+              onClick={() => { handleSend('How will the June 3 transport strike in Lisbon affect my arrival and getting around?'); dismissStrikeBanner(); }}
+              className="underline underline-offset-2 hover:text-amber-300"
+            >
+              Ask Gemel how it affects you
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={dismissStrikeBanner}
+            aria-label="Dismiss"
+            className="shrink-0 rounded px-1.5 text-[color:var(--color-muted)] hover:text-[color:var(--color-text)]"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="relative flex min-h-0 flex-1">
         <div className="flex min-h-0 flex-1 flex-col">
