@@ -15,6 +15,13 @@ const VOICE_HISTORY_LIMIT = 10;
 // time-to-first-audio — ElevenLabs aborts a turn whose LLM is slow to respond.
 const MAX_TOOL_ITERATIONS = 2;
 
+// Iter 0 (tool-decision pass) uses Haiku: it only needs to pick the right tool
+// and format a query string — first token in ~300ms vs ~700ms for Sonnet.
+// Iter 1+ (the actual spoken answer after tools run) reverts to Sonnet for
+// quality. If iter 0 turns out to be the final answer (no tools needed),
+// Haiku handles it — voice replies are 1-3 sentences so quality gap is minimal.
+const VOICE_DECISION_MODEL = 'claude-haiku-4-5-20251001';
+
 // Spoken "buffer word" emitted the instant a lookup (tool call) starts, so
 // ElevenLabs gets audio within ~1s and doesn't time out the turn while the
 // tools + answer generation run. Only fires on tool turns; keyed off session
@@ -304,7 +311,7 @@ export async function POST(req) {
             let finalMessage = null;
             let pending = ''; // accumulate tokens for whitespace-boundary sanitisation
 
-            for await (const event of streamTurnRaw(messagesForClaude, systemPrompt, TOOL_DEFINITIONS)) {
+            for await (const event of streamTurnRaw(messagesForClaude, systemPrompt, TOOL_DEFINITIONS, { model: iter === 0 ? VOICE_DECISION_MODEL : undefined })) {
               if (event.type === 'text') {
                 pending += event.text;
                 // Sanitise and emit whole words (URLs are never split across words)
