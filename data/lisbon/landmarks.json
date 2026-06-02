@@ -3,13 +3,13 @@
     "id": "unicorn-factory-lisboa",
     "type": "landmark",
     "name": "Unicorn Factory Lisboa",
-    "description": "The NFC Summit 2026 venue — Lisbon's flagship startup and innovation campus in Alcântara, in a converted industrial building near the riverfront. Three-day digital arts conference 4–6 June 2026.",
-    "address": "Rua Maria Pia 76, 1350-219 Lisboa",
-    "neighbourhood": "Alcântara",
-    "coordinates": { "lat": 38.7036, "lng": -9.1755 },
+    "description": "The NFC Summit 2026 venue — Lisbon's flagship startup and innovation campus, set in a converted industrial building in Beato near the riverfront. Three-day digital arts conference 4–6 June 2026.",
+    "address": "Av. Infante Dom Henrique 143, 1950-406 Lisboa",
+    "neighbourhood": "Beato",
+    "coordinates": { "lat": 38.7285, "lng": -9.1167 },
     "priceRange": "free",
     "openingHours": { "thu": "09:30-19:00", "fri": "09:30-19:00", "sat": "09:30-23:00" },
-    "tags": ["nfc-summit", "venue", "conference", "alcantara"],
+    "tags": ["nfc-summit", "venue", "conference", "beato"],
     "nfcRelevant": true,
     "sponsored": false
   }
