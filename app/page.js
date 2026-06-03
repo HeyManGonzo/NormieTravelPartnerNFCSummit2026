@@ -157,6 +157,10 @@ export default async function HomePage() {
         >
           @heymangonzo
         </a>
+        {' · '}
+        <Link href="/disclaimer" className="transition hover:text-[color:var(--color-text)]">
+          Disclaimer
+        </Link>
       </footer>
     </main>
   );

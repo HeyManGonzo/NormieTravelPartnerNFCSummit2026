@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ListTodo } from 'lucide-react';
+import { ListTodo, Info } from 'lucide-react';
 import ChatWindow from '@/components/chat/ChatWindow';
 import ItineraryView from '@/components/itinerary/ItineraryView';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
@@ -269,6 +269,14 @@ export default function ChatPage() {
             language={locale}
           />
           <LanguageSwitcher value={locale} onChange={setLocale} />
+          <Link
+            href="/disclaimer"
+            aria-label="Disclaimer"
+            title="Disclaimer"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--color-muted)] transition hover:text-[color:var(--color-text)]"
+          >
+            <Info size={16} aria-hidden />
+          </Link>
         </div>
       </header>
 
