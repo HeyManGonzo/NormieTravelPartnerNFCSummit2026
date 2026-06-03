@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
-import { db, schema } from '@/lib/db.js';
+import { db, schema, withTimeout } from '@/lib/db.js';
 import { getOrCreateSession, readSessionIdFromCookie } from '@/lib/session.js';
 import { SUPPORTED_LOCALES } from '@/lib/i18n';
 
@@ -13,13 +13,17 @@ export const dynamic = 'force-dynamic';
 // and the planning chat).
 export async function POST() {
   try {
-    const { session, isNew } = await getOrCreateSession();
+    const { session, isNew } = await withTimeout(getOrCreateSession(), 8000, 'session');
 
-    const [profile] = await db
-      .select()
-      .from(schema.tripProfiles)
-      .where(eq(schema.tripProfiles.sessionId, session.id))
-      .limit(1);
+    const [profile] = await withTimeout(
+      db
+        .select()
+        .from(schema.tripProfiles)
+        .where(eq(schema.tripProfiles.sessionId, session.id))
+        .limit(1),
+      8000,
+      'profile',
+    );
 
     return NextResponse.json({
       success: true,
@@ -101,7 +105,7 @@ export async function PATCH(request) {
 // GET /api/session — read-only status check (no cookie write if missing).
 export async function GET() {
   try {
-    const { session, isNew } = await getOrCreateSession();
+    const { session, isNew } = await withTimeout(getOrCreateSession(), 8000, 'session');
     return NextResponse.json({
       success: true,
       data: {

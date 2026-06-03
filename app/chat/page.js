@@ -58,12 +58,27 @@ export default function ChatPage() {
     if (bootstrapped.current) return;
     bootstrapped.current = true;
 
+    // Establish the session, retrying once on a transient failure (e.g. a
+    // brief DB blip that 500/504s) so a single hiccup doesn't leave the chat
+    // uninitialised.
+    const postSession = async (attempt = 0) => {
+      try {
+        const res = await fetch('/api/session', { method: 'POST', credentials: 'include' });
+        const json = await res.json();
+        if (json?.success) return json;
+        throw new Error(json?.error || 'session failed');
+      } catch (err) {
+        if (attempt < 1) {
+          await new Promise((r) => setTimeout(r, 800));
+          return postSession(attempt + 1);
+        }
+        throw err;
+      }
+    };
+
     (async () => {
       try {
-        const sess = await fetch('/api/session', {
-          method: 'POST',
-          credentials: 'include',
-        }).then((r) => r.json());
+        const sess = await postSession();
         if (sess?.success) {
           setLocale(sess.data.language ?? 'en');
           setStatus(sess.data.status ?? 'onboarding');
