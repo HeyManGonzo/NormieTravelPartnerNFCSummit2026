@@ -142,6 +142,51 @@ Two options:
 
 Recommended: **Option A first**, revisit Option B once demand proves the model.
 
+### Phase 6 — Location- & language-aware live news (config-driven)
+
+For time-sensitive local questions (transport strikes, closures, weather warnings, airport
+issues) the freshest and most accurate coverage is the **local-language press** and the
+**official operators**, not international/English outlets — which lag. NFC Summit 2026 proved this
+live: during the 3 June Lisbon transport strike, web search initially surfaced only English
+aggregators (or came back empty), so a steer was added to prioritise Portuguese sources and
+operators.
+
+That steer currently lives as **hardcoded constants** and must become per-event config:
+
+- `lib/apis/perplexity.js` — `LANGUAGE_STEER` (hardcoded `pt`) and `scopeQuery()` (hardcoded
+  `"Lisbon"` append).
+- `lib/tools.js` `execSearchWeb` — `LOCAL_NEWS_HINT` (hardcoded list of PT outlets + Lisbon
+  operators) and the bilingual query nudge ("notícias de hoje").
+- `lib/prompts/system.js` — the search-rule line naming the PT outlets/operators.
+
+**Target: read these from `events.config` instead of constants.** New config fields:
+```jsonc
+{
+  "location": {
+    "city": "Lisbon",
+    "country": "PT",
+    "timezone": "Europe/Lisbon",
+    "coordinates": { "lat": 38.72, "lng": -9.14 },  // "near venue" scoping
+    "scopeTerm": "Lisbon"                            // replaces scopeQuery()'s hardcoded append
+  },
+  "newsLocale": "pt",                                // → askPerplexity language steer + nudge wording
+  "localNewsSources":  ["CNN Portugal", "SIC Notícias", "Público", "Observador", "RTP", "Lusa"],
+  "officialOperators": ["Metro de Lisboa", "Carris", "CP", "ANA / Aeroportos"]
+}
+```
+
+`execSearchWeb` builds the `systemHint` + bilingual nudge from these at runtime; `askPerplexity`
+takes `language`/`scopeTerm` from config. Result: a Barcelona event steers to La Vanguardia / El
+Periódico / TMB in Spanish, a Berlin event to rbb24 / BVG in German — **no code change, only
+config**.
+
+**Admin UI:** a small "Location & news" section in the event editor — city/country/timezone/
+coordinates, a primary news language, and two editable chip-lists (news outlets, official
+operators). Slots in beside the sponsors/announcements editors already on `feature/admin-panel`.
+
+This is the logical companion to Phase 1 (config extraction) and the sponsor/announcement config,
+and squarely in the white-label direction.
+
 ---
 
 ## What Already Works Toward This Vision
@@ -161,6 +206,7 @@ Recommended: **Option A first**, revisit Option B once demand proves the model.
 | Dynamic sponsor layer | ❌ | Not built |
 | White-label theming | ❌ | Not built — colours/fonts hardcoded |
 | City-agnostic catalog | ❌ | Lisbon-specific JSON files |
+| Location-/language-aware live news | Partial | Time-sensitive search steers to PT sources + operators, but hardcoded — needs to move to `events.config` (Phase 6) |
 
 ---
 
@@ -168,6 +214,7 @@ Recommended: **Option A first**, revisit Option B once demand proves the model.
 
 1. **Debrief NFC Summit 2026** — collect real usage, identify what visitors actually asked, what broke, what worked
 2. **Phase 1** — Extract event config (no new features, just architectural cleanup)
+   - Fold in **Phase 6** (location-/language-aware live news) here — it's the same config-extraction work applied to the search steer
 3. **Phase 2** — Multi-tenancy (database + routing)
 4. **Phase 3** — Sponsor layer management
 5. **Phase 4** — Event organiser onboarding (MVP: manual setup via JSON/API, no UI)
