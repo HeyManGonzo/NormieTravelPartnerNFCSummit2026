@@ -187,6 +187,41 @@ operators). Slots in beside the sponsors/announcements editors already on `featu
 This is the logical companion to Phase 1 (config extraction) and the sponsor/announcement config,
 and squarely in the white-label direction.
 
+### Phase 7 — Per-event data retention & purge (privacy by design)
+
+Events are time-boxed, so visitor data shouldn't live forever. Let each event define a **retention
+cut-off**: after a set date, all stored PII for that event is deleted and the session cookies stop
+mattering. This is GDPR storage-limitation compliance and a real selling point — pairs with the
+ElevenLabs **Zero-Retention** toggle (their side) for a complete retention story.
+
+**The schema already makes the purge clean (verified):**
+- PII tables — `trip_profiles`, `conversations`, `itineraries`, `recommendations` — all
+  `onDelete: cascade` from `sessions`. So **purge = delete the session rows**; PII cascades away.
+- `usage_events.session_id` is `onDelete: set null` (not cascade), so deleting sessions
+  **preserves the cost/usage dashboard** — analytics survive, just anonymised. Ideal split:
+  delete PII, keep aggregate billing data.
+- `events.config` (jsonb) is the natural home for retention settings; `sessions.event_id` scopes
+  the purge per event.
+
+**Design:**
+- **Config in `events.config`:** `retention: { purgeAfterEventDays: 14, purgeAt:
+  'YYYY-MM-DD' (computed from event end, admin-overridable), lastPurgedAt }`. Default event-end
+  + 14 days (lets attendees return/export their itinerary); overridable down to ~7.
+- **Manual date, automatic enforcement:** admin sets/overrides the date; a **Vercel Cron** (no
+  `vercel.json` cron exists yet — would be added) hits a purge route daily that, for each event
+  past `purgeAt`, deletes expired sessions (cascade wipes PII) and leaves `usage_events`
+  anonymised. Add a **"Purge now"** override and a **dry-run count** in admin.
+- **Cookies, two layers:** (1) shorten the session cookie's 90-day `COOKIE_MAX_AGE`
+  (`lib/session.js`) to the event window for event deployments so it self-expires; (2) once the
+  session row is deleted, any lingering cookie points at nothing and is treated as a new visitor.
+- **Idempotent + logged:** each purge records counts + timestamp as audit evidence; safe to re-run.
+- **Publish it:** when shipped, add a retention line to the Disclaimer ("conversation data deleted
+  N days after the event; only anonymised usage stats retained"). Note: this also invalidates
+  public itinerary **share links** (expected).
+
+Admin UI: a "Privacy & retention" section in the event editor — the cut-off date, a dry-run
+preview, and a "Purge now" button. Supersedes the earlier vague "GDPR retention" backlog note.
+
 ---
 
 ## What Already Works Toward This Vision
@@ -207,6 +242,7 @@ and squarely in the white-label direction.
 | White-label theming | ❌ | Not built — colours/fonts hardcoded |
 | City-agnostic catalog | ❌ | Lisbon-specific JSON files |
 | Location-/language-aware live news | Partial | Time-sensitive search steers to PT sources + operators, but hardcoded — needs to move to `events.config` (Phase 6) |
+| Per-event data retention & purge | ❌ | Not built — schema is purge-ready (PII cascades from `sessions`; `usage_events` survives anonymised). Admin cut-off date + cron purge (Phase 7) |
 
 ---
 
@@ -220,6 +256,7 @@ and squarely in the white-label direction.
 5. **Phase 4** — Event organiser onboarding (MVP: manual setup via JSON/API, no UI)
 6. **Phase 5** — Self-serve organiser UI
 7. **City-agnostic catalog** — evaluate after first non-Lisbon event
+8. **Phase 7** — Per-event data retention & purge (can land early alongside Phase 2 multi-tenancy; the purge mechanism is mostly schema-ready today)
 
 ---
 
