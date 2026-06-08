@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T11:27:37.878Z",
+  "generatedAt": "2026-06-08T12:03:22.645Z",
   "defaultTokenId": "6832",
   "agents": [
     {
@@ -41,6 +41,9 @@
         "Accessory": "Fedora"
       },
       "portrait": "/agents/6832.svg",
+      "accent": "#d9ff00",
+      "accentText": "#07070a",
+      "accentSoft": "rgba(217,255,0,0.12)",
       "openSeaUrl": "https://opensea.io/item/ethereum/0x9eb6e2025b64f340691e424b7fe7022ffde12438/6832"
     },
     {
@@ -82,6 +85,9 @@
         "Accessory": "Bow Tie"
       },
       "portrait": "/agents/2601.svg",
+      "accent": "#5cc8ff",
+      "accentText": "#07070a",
+      "accentSoft": "rgba(92,200,255,0.12)",
       "openSeaUrl": "https://opensea.io/item/ethereum/0x9eb6e2025b64f340691e424b7fe7022ffde12438/2601"
     },
     {
@@ -123,6 +129,9 @@
         "Accessory": "Top Hat"
       },
       "portrait": "/agents/2359.svg",
+      "accent": "#f5a742",
+      "accentText": "#07070a",
+      "accentSoft": "rgba(245,167,66,0.12)",
       "openSeaUrl": "https://opensea.io/item/ethereum/0x9eb6e2025b64f340691e424b7fe7022ffde12438/2359"
     }
   ]

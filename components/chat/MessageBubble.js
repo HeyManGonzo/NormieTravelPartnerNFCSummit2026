@@ -126,7 +126,7 @@ function renderContent(content) {
   });
 }
 
-export default function MessageBubble({ role, content, streaming = false }) {
+export default function MessageBubble({ role, content, streaming = false, avatar = '/gemel.svg' }) {
   const isUser = role === 'user';
   const wrapper = isUser ? 'justify-end' : 'justify-start';
   const bubble = isUser
@@ -141,7 +141,7 @@ export default function MessageBubble({ role, content, streaming = false }) {
       {!isUser && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src="/gemel.svg"
+          src={avatar}
           alt=""
           aria-hidden
           className="h-8 w-8 shrink-0 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-0.5"

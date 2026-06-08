@@ -15,6 +15,7 @@ export default function ChatWindow({
   sendLabel,
   footer,
   micSlot = null,
+  avatar = '/gemel.svg',
 }) {
   const scrollRef = useRef(null);
 
@@ -32,9 +33,9 @@ export default function ChatWindow({
       >
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
           {messages.map((m) => (
-            <MessageBubble key={m.id} role={m.role} content={m.content} streaming={m.streaming ?? false} />
+            <MessageBubble key={m.id} role={m.role} content={m.content} streaming={m.streaming ?? false} avatar={avatar} />
           ))}
-          {pending && !streaming && <TypingIndicator label={pendingLabel} />}
+          {pending && !streaming && <TypingIndicator label={pendingLabel} avatar={avatar} />}
         </div>
       </div>
 

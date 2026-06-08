@@ -29,6 +29,16 @@ export default function ChatPage() {
 
   const t = getMessages(locale);
 
+  // The active identity drives the header name, the avatars, and the whole
+  // page's accent colour. Falls back to Gemel's lime defaults until loaded.
+  const currentAgent = agents.find((a) => a.tokenId === agentId) ?? null;
+  const agentName = currentAgent?.name ?? 'Gemel';
+  const agentAvatar = currentAgent?.portrait ?? '/gemel.svg';
+  const named = (s) => (typeof s === 'string' ? s.replace(/Gemel/g, agentName) : s);
+  const themeVars = currentAgent
+    ? { '--color-accent': currentAgent.accent, '--color-accent-soft': currentAgent.accentSoft }
+    : undefined;
+
   // Time-boxed banner for the 3 June 2026 Lisbon transport strike. Shows until
   // the morning of 4 June (Lisbon time) unless the visitor has dismissed it.
   useEffect(() => {
@@ -292,19 +302,19 @@ export default function ChatPage() {
 
 
   return (
-    <main className="flex h-[100dvh] flex-col bg-[color:var(--color-bg)]">
+    <main className="flex h-[100dvh] flex-col bg-[color:var(--color-bg)]" style={themeVars}>
       <header className="relative z-30 flex shrink-0 items-center justify-between gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)] px-4 py-3 sm:px-6">
         <Link href="/" className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/gemel.svg"
+            src={agentAvatar}
             alt=""
             aria-hidden
             className="h-7 w-7"
             style={{ imageRendering: 'pixelated' }}
           />
           <span className="font-display text-sm font-semibold tracking-[0.18em] uppercase">
-            Gemel<span className="text-[color:var(--color-accent)]">.</span>
+            {agentName}<span className="text-[color:var(--color-accent)]">.</span>
           </span>
           <span className="hidden text-[10px] uppercase tracking-[0.18em] text-[color:var(--color-muted)] sm:inline">
             {t.status[status] ?? status}
@@ -357,7 +367,7 @@ export default function ChatPage() {
               onClick={() => { handleSend('How will the June 3 transport strike in Lisbon affect my arrival and getting around?'); dismissStrikeBanner(); }}
               className="underline underline-offset-2 hover:text-amber-300"
             >
-              Ask Gemel how it affects you
+              Ask {agentName} how it affects you
             </button>
           </div>
           <button
@@ -387,10 +397,11 @@ export default function ChatPage() {
               messages={messages}
               pending={pending}
               streaming={streaming}
-              pendingLabel={pendingLabel}
+              pendingLabel={named(pendingLabel)}
               onSend={handleSend}
-              placeholder={t.chat.placeholder}
+              placeholder={named(t.chat.placeholder)}
               sendLabel={t.chat.send}
+              avatar={agentAvatar}
             />
           </div>
         )}
