@@ -245,7 +245,8 @@ export async function POST(req) {
     });
 
     // Strip ElevenLabs' injected system message — we supply our own via
-    // buildSystemPrompt so Gemel's full persona and session context are intact.
+    // buildSystemPrompt so the chosen Normie's full persona and session context
+    // are intact (the persona is resolved from session.agentTokenId).
     const conversationMessages = rawMessages
       .filter((m) => m.role !== 'system')
       .slice(-VOICE_HISTORY_LIMIT)

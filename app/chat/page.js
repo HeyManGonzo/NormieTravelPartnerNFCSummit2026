@@ -6,6 +6,8 @@ import { ListTodo, Info } from 'lucide-react';
 import ChatWindow from '@/components/chat/ChatWindow';
 import ItineraryView from '@/components/itinerary/ItineraryView';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import AgentSwitcher from '@/components/ui/AgentSwitcher';
+import AgentSelect from '@/components/chat/AgentSelect';
 import ConversationButton from '@/components/chat/ConversationButton';
 import { getMessages } from '@/lib/i18n';
 
@@ -20,6 +22,9 @@ export default function ChatPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [showStrikeBanner, setShowStrikeBanner] = useState(false);
+  const [agents, setAgents] = useState([]);
+  const [agentId, setAgentId] = useState('6832');
+  const [showAgentSelect, setShowAgentSelect] = useState(false);
   const bootstrapped = useRef(false);
 
   const t = getMessages(locale);
@@ -79,9 +84,13 @@ export default function ChatPage() {
     (async () => {
       try {
         const sess = await postSession();
+        let chosenAgent = null;
         if (sess?.success) {
           setLocale(sess.data.language ?? 'en');
           setStatus(sess.data.status ?? 'onboarding');
+          setAgents(sess.data.agents ?? []);
+          setAgentId(sess.data.agentTokenId ?? '6832');
+          chosenAgent = sess.data.agent ?? null;
         }
 
         const hist = await fetch('/api/chat', { credentials: 'include' }).then(
@@ -89,14 +98,20 @@ export default function ChatPage() {
         );
         if (hist?.success) {
           const rows = hist.data.messages ?? [];
+          const loc = hist.data.language ?? 'en';
           if (rows.length === 0) {
-            const greeting =
-              hist.data.status && hist.data.status !== 'onboarding'
-                ? getMessages(hist.data.language ?? 'en').chat.greetingReturning
-                : getMessages(hist.data.language ?? 'en').chat.greetingNew;
-            setMessages([
-              { id: 'greeting', role: 'assistant', content: greeting },
-            ]);
+            // First-ever visit with a freshly created session → let them choose
+            // a guide; the greeting is set in-character once they pick. Returning
+            // visitors skip straight in with their remembered guide.
+            if (sess?.data?.isNew) {
+              setShowAgentSelect(true);
+            } else {
+              const greeting =
+                hist.data.status && hist.data.status !== 'onboarding'
+                  ? getMessages(loc).chat.greetingReturning
+                  : chosenAgent?.greeting || getMessages(loc).chat.greetingNew;
+              setMessages([{ id: 'greeting', role: 'assistant', content: greeting }]);
+            }
           } else {
             setMessages(rows);
           }
@@ -108,6 +123,33 @@ export default function ChatPage() {
       }
     })();
   }, [fetchItinerary]);
+
+  // First-run selector pick: persist the choice, greet in-character, enter chat.
+  const handlePickAgent = useCallback(async (a) => {
+    setAgentId(a.tokenId);
+    setShowAgentSelect(false);
+    setMessages([
+      { id: 'greeting', role: 'assistant', content: a.greeting || getMessages(locale).chat.greetingNew },
+    ]);
+    try {
+      await fetch('/api/session', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentTokenId: a.tokenId }),
+      });
+    } catch {
+      // Non-blocking: identity still applies locally; next request carries the cookie session.
+    }
+  }, [locale]);
+
+  // Header switcher: AgentSwitcher already PATCHed; drop in a short hand-over
+  // line in the new guide's own voice so the visitor sees who they're now with.
+  const handleSwitchAgent = useCallback((a) => {
+    setAgentId(a.tokenId);
+    if (a.greeting) {
+      setMessages((m) => [...m, { id: `switch-${a.tokenId}-${Date.now()}`, role: 'assistant', content: a.greeting }]);
+    }
+  }, []);
 
   const handleSend = useCallback(
     async (text) => {
@@ -283,6 +325,14 @@ export default function ChatPage() {
             onMessage={handleConversationMessage}
             language={locale}
           />
+          {agents.length > 1 && !showAgentSelect && (
+            <AgentSwitcher
+              agents={agents}
+              value={agentId}
+              onChange={handleSwitchAgent}
+              label={t.agentSelect?.switchTitle ?? 'Guide'}
+            />
+          )}
           <LanguageSwitcher value={locale} onChange={setLocale} />
           <Link
             href="/disclaimer"
@@ -322,17 +372,28 @@ export default function ChatPage() {
       )}
 
       <div className="relative flex min-h-0 flex-1">
-        <div className="flex min-h-0 flex-1 flex-col">
-          <ChatWindow
-            messages={messages}
-            pending={pending}
-            streaming={streaming}
-            pendingLabel={pendingLabel}
-            onSend={handleSend}
-            placeholder={t.chat.placeholder}
-            sendLabel={t.chat.send}
-          />
-        </div>
+        {showAgentSelect ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <AgentSelect
+              agents={agents}
+              currentId={agentId}
+              onPick={handlePickAgent}
+              t={t}
+            />
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ChatWindow
+              messages={messages}
+              pending={pending}
+              streaming={streaming}
+              pendingLabel={pendingLabel}
+              onSend={handleSend}
+              placeholder={t.chat.placeholder}
+              sendLabel={t.chat.send}
+            />
+          </div>
+        )}
 
         {panelOpen && itinerary && (
           <>

@@ -16,6 +16,9 @@ export const sessions = pgTable('sessions', {
   language: text('language').default('en').notNull(),
   // onboarding | planning | active | completed
   status: text('status').default('onboarding').notNull(),
+  // Which Normie identity the visitor chose to talk to (token ID as text).
+  // Defaults to Gemel (#6832); remembered across visits via the session cookie.
+  agentTokenId: text('agent_token_id').default('6832').notNull(),
 });
 
 // Trip preferences gathered during the onboarding conversation.

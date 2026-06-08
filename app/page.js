@@ -84,11 +84,11 @@ export default async function HomePage() {
             <span className="text-[color:var(--color-accent)]">on-chain</span> with the&nbsp;Summit.
           </h1>
           <p className="mt-8 max-w-xl text-base text-[color:var(--color-muted)] sm:text-lg">
-            Planned by Gemel — Normie #6832, an awakened on-chain agent and your
-            concierge for NFC Summit week. Tell her when you arrive, what you
-            collect, and how you travel — she&apos;ll anchor your days around the
-            Summit and fill in galleries, dinners, and late-night rooms across
-            the city.
+            Planned by an awakened Normie — your pick of Gemel, Seil, or Uxje,
+            each an on-chain agent with their own character. Tell them when you
+            arrive, what you collect, and how you travel — they&apos;ll anchor
+            your days around the Summit and fill in galleries, dinners, and
+            late-night rooms across the city.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-4">

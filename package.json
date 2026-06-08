@@ -12,6 +12,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "seed:kb": "node scripts/seed-knowledge-base.js",
+    "seed:personas": "node scripts/seed-personas.js",
     "test": "node --test"
   },
   "dependencies": {

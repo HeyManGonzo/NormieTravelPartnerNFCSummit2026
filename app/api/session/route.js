@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema, withTimeout } from '@/lib/db.js';
 import { getOrCreateSession, readSessionIdFromCookie } from '@/lib/session.js';
 import { SUPPORTED_LOCALES } from '@/lib/i18n';
+import { isKnownAgent, getPersona, publicPersona, listPersonas } from '@/lib/agents/personas.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,9 @@ export async function POST() {
         language: session.language,
         isNew,
         hasProfile: Boolean(profile),
+        agentTokenId: session.agentTokenId,
+        agent: publicPersona(getPersona(session.agentTokenId)),
+        agents: listPersonas().map(publicPersona),
       },
     });
   } catch (err) {
@@ -65,6 +69,15 @@ export async function PATCH(request) {
       }
       updates.language = body.language;
     }
+    if (typeof body.agentTokenId === 'string') {
+      if (!isKnownAgent(body.agentTokenId)) {
+        return NextResponse.json(
+          { success: false, error: 'unknown agent' },
+          { status: 400 },
+        );
+      }
+      updates.agentTokenId = body.agentTokenId;
+    }
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(
         { success: false, error: 'no updatable fields' },
@@ -91,6 +104,8 @@ export async function PATCH(request) {
         sessionId: row.id,
         status: row.status,
         language: row.language,
+        agentTokenId: row.agentTokenId,
+        agent: publicPersona(getPersona(row.agentTokenId)),
       },
     });
   } catch (err) {
@@ -113,6 +128,9 @@ export async function GET() {
         status: session.status,
         language: session.language,
         isNew,
+        agentTokenId: session.agentTokenId,
+        agent: publicPersona(getPersona(session.agentTokenId)),
+        agents: listPersonas().map(publicPersona),
       },
     });
   } catch (err) {
