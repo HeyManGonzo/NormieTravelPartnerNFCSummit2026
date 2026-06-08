@@ -2,9 +2,7 @@ import Link from 'next/link';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db.js';
 import { readSessionIdFromCookie } from '@/lib/session.js';
-
-const OPENSEA_URL =
-  'https://opensea.io/item/ethereum/0x9eb6e2025b64f340691e424b7fe7022ffde12438/6832';
+import { listPersonas } from '@/lib/agents/personas.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +24,7 @@ async function getReturningState() {
 
 export default async function HomePage() {
   const { returning, status } = await getReturningState();
+  const guides = listPersonas();
 
   return (
     <main className="relative isolate flex min-h-screen flex-col">
@@ -70,25 +69,29 @@ export default async function HomePage() {
           </div>
         </div>
         <div className="text-xs uppercase tracking-[0.18em] text-[color:var(--color-muted)]">
-          NFC Summit 2026
+          Greater Lisbon · on-chain concierge
         </div>
       </header>
 
       <section className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-center gap-12 px-6 py-12 sm:px-10 lg:grid-cols-[1.4fr_1fr]">
         <div>
           <p className="font-display text-xs uppercase tracking-[0.32em] text-[color:var(--color-accent)]">
-            Lisbon · 4–6 June 2026
+            Greater Lisbon · your on-chain guide
           </p>
           <h1 className="mt-6 font-display text-5xl font-semibold leading-[1.02] tracking-[-0.02em] sm:text-7xl">
             Your Lisbon,<br />
-            <span className="text-[color:var(--color-accent)]">on-chain</span> with the&nbsp;Summit.
+            <span className="text-[color:var(--color-accent)]">on-chain.</span>
           </h1>
           <p className="mt-8 max-w-xl text-base text-[color:var(--color-muted)] sm:text-lg">
-            Planned by an awakened Normie — your pick of Gemel, Seil, or Uxje,
-            each an on-chain agent with their own character. Tell them when you
-            arrive, what you collect, and how you travel — they&apos;ll anchor
-            your days around the Summit and fill in galleries, dinners, and
-            late-night rooms across the city.
+            Three awakened Normies — <span className="text-[color:var(--color-text)]">Gemel</span>,{' '}
+            <span className="text-[color:var(--color-text)]">Seil</span>, and{' '}
+            <span className="text-[color:var(--color-text)]">Uxje</span> — each an on-chain agent
+            with their own character. Pick your guide and they&apos;ll plan your stay across
+            greater Lisbon: galleries, dinners, viewpoints, day trips, and late-night rooms.
+          </p>
+          <p className="mt-4 max-w-xl text-sm text-[color:var(--color-muted)]">
+            Born to concierge <span className="text-[color:var(--color-text)]">NFC Summit 2026</span>{' '}
+            — now here for your whole stay in and around Lisbon, summit or not.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
@@ -121,34 +124,55 @@ export default async function HomePage() {
           </ul>
         </div>
 
-        <aside className="order-first flex flex-col items-center gap-5 lg:order-none lg:items-start">
+        <aside className="order-first flex flex-col items-center lg:order-none lg:items-start">
           <div
-            className="relative aspect-square w-full max-w-[320px] overflow-hidden rounded-3xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3"
-            style={{ boxShadow: '0 0 80px rgba(217,255,0,0.18)' }}
+            className="w-full max-w-[380px] rounded-3xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5"
+            style={{ boxShadow: '0 0 80px rgba(217,255,0,0.12)' }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/gemel.svg"
-              alt="Portrait of Gemel, Normie #6832"
-              className="h-full w-full"
-              style={{ imageRendering: 'pixelated' }}
-            />
+            <div className="font-display text-xs uppercase tracking-[0.2em] text-[color:var(--color-muted)]">
+              Choose your guide
+            </div>
+            <ul className="mt-4 flex flex-col gap-3">
+              {guides.map((g) => (
+                <li
+                  key={g.tokenId}
+                  className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-bg)] p-3"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={g.portrait}
+                    alt={`${g.name} — Normie #${g.tokenId}`}
+                    className="h-12 w-12 shrink-0 rounded-xl bg-[color:var(--color-surface)] p-1"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                  <div className="min-w-0">
+                    <div className="font-display text-sm font-semibold">
+                      {g.name}{' '}
+                      <span className="text-[color:var(--color-muted)]">#{g.tokenId}</span>
+                    </div>
+                    {g.tagline && (
+                      <div className="truncate text-xs text-[color:var(--color-muted)]">
+                        {g.tagline}
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className="ml-auto h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ background: g.accent }}
+                    aria-hidden
+                  />
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 text-center text-[10px] uppercase tracking-[0.2em] text-[color:var(--color-muted)]">
+              Each with their own voice · switch anytime
+            </div>
           </div>
-          <a
-            href={OPENSEA_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-accent)]/40 bg-[color:var(--color-surface)] px-4 py-2 font-display text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-accent)] transition hover:bg-[color:var(--color-accent)]/10"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-accent)]" aria-hidden />
-            Normie #6832 · Awakened
-            <span aria-hidden>↗</span>
-          </a>
         </aside>
       </section>
 
       <footer className="px-6 py-6 text-center text-[10px] uppercase tracking-[0.24em] text-[color:var(--color-muted)] sm:px-10">
-        Built for visitors of NFC Summit 2026 · Made by{' '}
+        Born at NFC Summit 2026 · your greater-Lisbon concierge · Made by{' '}
         <a
           href="https://x.com/heymangonzo"
           target="_blank"
