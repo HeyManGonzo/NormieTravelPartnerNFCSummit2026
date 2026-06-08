@@ -91,7 +91,7 @@ export default async function HomePage() {
           </p>
           <p className="mt-4 max-w-xl text-sm text-[color:var(--color-muted)]">
             Born to concierge <span className="text-[color:var(--color-text)]">NFC Summit 2026</span>{' '}
-            — now here for your whole stay in and around Lisbon, summit or not.
+            — now here for your whole stay in and around Lisbon this summer, summit or not.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
