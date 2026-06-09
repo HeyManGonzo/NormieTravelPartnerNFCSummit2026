@@ -119,7 +119,7 @@ export default function ChatPage() {
               const greeting =
                 hist.data.status && hist.data.status !== 'onboarding'
                   ? getMessages(loc).chat.greetingReturning
-                  : chosenAgent?.greeting || getMessages(loc).chat.greetingNew;
+                  : chosenAgent?.greetings?.[loc] || chosenAgent?.greeting || getMessages(loc).chat.greetingNew;
               setMessages([{ id: 'greeting', role: 'assistant', content: greeting }]);
             }
           } else {
@@ -139,7 +139,7 @@ export default function ChatPage() {
     setAgentId(a.tokenId);
     setShowAgentSelect(false);
     setMessages([
-      { id: 'greeting', role: 'assistant', content: a.greeting || getMessages(locale).chat.greetingNew },
+      { id: 'greeting', role: 'assistant', content: a.greetings?.[locale] || a.greeting || getMessages(locale).chat.greetingNew },
     ]);
     try {
       await fetch('/api/session', {
@@ -156,10 +156,11 @@ export default function ChatPage() {
   // line in the new guide's own voice so the visitor sees who they're now with.
   const handleSwitchAgent = useCallback((a) => {
     setAgentId(a.tokenId);
-    if (a.greeting) {
-      setMessages((m) => [...m, { id: `switch-${a.tokenId}-${Date.now()}`, role: 'assistant', content: a.greeting }]);
+    const hello = a.greetings?.[locale] || a.greeting;
+    if (hello) {
+      setMessages((m) => [...m, { id: `switch-${a.tokenId}-${Date.now()}`, role: 'assistant', content: hello }]);
     }
-  }, []);
+  }, [locale]);
 
   const handleSend = useCallback(
     async (text) => {
